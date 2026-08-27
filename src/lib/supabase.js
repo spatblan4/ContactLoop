@@ -1,9 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 import { nextAttemptNumber } from './contact-attempts.js';
 import { edgeFunctionError } from './edge-errors.js';
+import { APP_MODE } from './app-config.js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = import.meta.env?.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env?.VITE_SUPABASE_ANON_KEY;
 
 export const hasSupabaseConfig = Boolean(supabaseUrl && supabaseAnonKey);
 export const supabase = hasSupabaseConfig ? createClient(supabaseUrl, supabaseAnonKey) : null;
@@ -35,17 +36,22 @@ export async function invokeContactBrief(body) {
 }
 
 export async function loadContactLoopData() {
-  if (!supabase) return { students: [], events: [], followUps: [], setupRequired: true };
+  if (!supabase) return { students: [], events: [], followUps: [], teacherNotes: [], setupRequired: true };
 
-  const [studentsResult, eventsResult, followUpsResult, aiBriefsResult] = await Promise.all([
-    supabase.from('students').select('id, name, initials, accent, guardians(id, name, relation, phone)').order('name'),
+  let studentsResult = await supabase.from('students').select('id, name, first_name, last_name, initials, accent, guardians(id, name, relation, phone, email, preferred_contact_method)').order('name');
+  if (studentsResult.error && /column|relationship|email|first_name|last_name/i.test(studentsResult.error.message || '')) {
+    studentsResult = await supabase.from('students').select('id, name, initials, accent, guardians(id, name, relation, phone)').order('name');
+  }
+  const [eventsResult, followUpsResult, aiBriefsResult, teacherNotesResult] = await Promise.all([
     supabase.from('contact_events').select('id, student_id, guardian_id, call_time, duration_seconds, result, attempt_number, topic, planned_topic, discussed_topics, teacher_note, follow_up_id, provider, provider_call_id, provider_status, started_at, ended_at').order('call_time', { ascending: false }),
     supabase.from('follow_ups').select('id, student_id, guardian_id, due_at, status, contact_event_id').eq('status', 'open').order('due_at'),
     supabase.from('ai_contact_briefs').select('*').neq('status', 'superseded').order('version', { ascending: false }),
+    supabase.from('teacher_notes').select('id, student_id, content, source, teacher_confirmed, created_at').order('created_at', { ascending: false }),
   ]);
 
   const missingBriefTable = aiBriefsResult.error?.code === '42P01' || aiBriefsResult.error?.message?.includes('ai_contact_briefs');
-  const firstError = studentsResult.error || eventsResult.error || followUpsResult.error || (missingBriefTable ? null : aiBriefsResult.error);
+  const missingTeacherNotesTable = teacherNotesResult.error?.code === '42P01' || teacherNotesResult.error?.message?.includes('teacher_notes');
+  const firstError = studentsResult.error || eventsResult.error || followUpsResult.error || (missingBriefTable ? null : aiBriefsResult.error) || (missingTeacherNotesTable ? null : teacherNotesResult.error);
   if (firstError) throw firstError;
 
   return {
@@ -53,8 +59,19 @@ export async function loadContactLoopData() {
     events: eventsResult.data ?? [],
     followUps: followUpsResult.data ?? [],
     aiBriefs: missingBriefTable ? [] : (aiBriefsResult.data ?? []),
+    teacherNotes: missingTeacherNotesTable ? [] : (teacherNotesResult.data ?? []),
     setupRequired: false,
   };
+}
+
+export async function importStudents(payload, client = supabase) {
+  if (!client?.rpc) throw new Error('Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
+  const { data, error } = await client.rpc('import_students', {
+    p_students: payload?.students ?? [],
+    p_guardians: payload?.guardians ?? [],
+  });
+  if (error) throw new Error(error.message || 'Unable to import students.');
+  return data;
 }
 
 export async function createContactEvent({ studentId, guardianId, result, durationSeconds, plannedTopic, discussedTopics, topic, teacherNote, followUpDueAt }) {
@@ -136,6 +153,12 @@ export async function updateFollowUp(id, updates) {
 
 export async function createStudent({ name, guardianName, relation, phone }) {
   if (!supabase) throw new Error('Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
+  if (APP_MODE === 'authenticated') {
+    return importStudents({
+      students: [{ first_name: name.trim().split(/\s+/).slice(0, -1).join(' ') || name.trim(), last_name: name.trim().split(/\s+/).at(-1) || '' }],
+      guardians: [{ student_key: name.trim().toLowerCase().replace(/\s+/g, ' '), name: guardianName, relationship: relation, phone }],
+    });
+  }
   const initials = name.split(/\s+/).filter(Boolean).map(part => part[0]).join('').slice(0, 2).toUpperCase();
   const { data: student, error: studentError } = await supabase.from('students').insert({ name, initials, accent: 'sage' }).select('id, name, initials, accent').single();
   if (studentError) throw studentError;

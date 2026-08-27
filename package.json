@@ -5,12 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "test": "node --test tests/*.test.js",
     "build": "vite build"
   },
   "devDependencies": {
     "vite": "latest"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.112.4"
+    "@supabase/supabase-js": "^2.112.4",
+    "xlsx": "^0.18.5"
   }
 }

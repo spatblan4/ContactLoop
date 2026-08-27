@@ -16,3 +16,8 @@
 - 下一步恢复 Import Students 设计：确认解析、列映射、预览和重复检测部分。
 - 用户已确认 Import Students 的解析、映射、预览、重复检测、浏览器内临时处理和事务导入设计。
 - 当前待确认最后一部分：四步 UI、认证门槛、empty/onboarding、错误处理和测试策略。
+- 已完成 CSV / XLSX 解析、列映射建议、Needs review 校验、重复记录处理和多 guardian 分组。
+- 已完成 Students 页面入口、空状态、Dashboard 首次 onboarding CTA、四步 Import UI 和本地编辑预览。
+- 已完成 Auth helper、demo/authenticated 环境切换、owner-derived `import_students` RPC client，以及 authenticated trial 的 Supabase SQL patch。
+- 已添加 `npm test`，当前 55 个测试全部通过；`npm run build` 已通过，仅有 bundle size warning。
+- 已为旧 Demo 表结构增加读取 fallback，避免 demo 项目因新字段不存在而无法加载。
