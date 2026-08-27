@@ -96,6 +96,8 @@ h3 { font:600 14px 'Space Grotesk'; }
 .brief-label { color:#657168; font-size:11px; font-weight:500; }
 .topic-chip { padding:8px 11px; font-size:13px; font-weight:500; }
 .topic-chip b { font-size:11px; font-weight:600; }
+.screen-title .button-secondary { background:#f0f2ed; color:var(--ink); border:1px solid #aeb9ae; box-shadow:0 2px 0 rgba(24,34,29,.04); }
+.screen-title .button-secondary:hover { background:#e7ebe4; color:var(--ink); border-color:#8f9e90; box-shadow:0 3px 0 rgba(24,34,29,.06); transform:translateY(-1px); }
 .hero-orbit span { position:absolute; color:#aab5aa; font:8px 'DM Mono'; letter-spacing:.14em; }.orbit-one span { right:25px; top:17px; transform:rotate(18deg); }.orbit-two span { left:15px; bottom:28px; transform:rotate(-34deg); }.loop-spark { position:absolute; z-index:0; width:11px;height:11px;border-radius:50%;background:var(--coral);box-shadow:0 0 0 6px #ef684f1c; }.spark-one { top:77px; right:9%; }.spark-two { bottom:67px; left:8%; width:7px;height:7px;background:#e4bb5d;box-shadow:0 0 0 5px #e4bb5d26; }
 .hero-visual > * { display:none; }
 .hero-visual::before { content:''; display:block; width:min(100%, 610px); aspect-ratio:1; background:url('/contactloop-hero.png') center/contain no-repeat; transform:translateX(34px); }
