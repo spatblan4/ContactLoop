@@ -6,12 +6,12 @@
 
 ## 当前阶段
 
-阶段 1：架构与认证边界确认（进行中）
+阶段 2：Import Students 实施（待开始）
 
 ## 阶段
 
-- [in_progress] 阶段 1：确认现有数据模型、认证和导入边界
-- [pending] 阶段 2：设计并实现纯函数解析、标准化、映射与重复检测
+- [completed] 阶段 1：确认现有数据模型、认证和导入边界
+- [in_progress] 阶段 2：Import Students 实施计划已确认，准备开始解析器与 Auth 基础
 - [pending] 阶段 3：扩展 Supabase schema、RLS 和批量导入 RPC / client API
 - [pending] 阶段 4：实现 Students 页面入口、四步导入 UI 与 empty/onboarding 状态
 - [pending] 阶段 5：测试、构建和浏览器回归验证
