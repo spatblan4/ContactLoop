@@ -11,3 +11,8 @@
 - 用户希望立即让同事试用，不等待黑客松结束。
 - 当前建议改为并行环境：共享一套代码，demo 环境固定展示数据，trial 环境启用 Auth、RLS 和真实 Import Students；通过环境变量切换 Supabase URL / app mode。
 - Git 分支建议：main 保持稳定共享代码；demo / trial 通过环境变量和不同 Supabase project 区分，而不是把数据放入 branch。
+- 已创建本地初始 Git commit，并绑定 / 推送到 `https://github.com/spatblan4/ContactLoop` 的 `main`。
+- 远程已有 README commit，已安全合并；当前 `main` 与 `origin/main` 同步。
+- 下一步恢复 Import Students 设计：确认解析、列映射、预览和重复检测部分。
+- 用户已确认 Import Students 的解析、映射、预览、重复检测、浏览器内临时处理和事务导入设计。
+- 当前待确认最后一部分：四步 UI、认证门槛、empty/onboarding、错误处理和测试策略。
