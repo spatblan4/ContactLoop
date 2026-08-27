@@ -151,18 +151,21 @@ export async function updateFollowUp(id, updates) {
   if (error) throw error;
 }
 
-export async function createStudent({ name, guardianName, relation, phone }) {
+export async function createStudent({ name, guardianName, relation, phone, guardians: suppliedGuardians }) {
   if (!supabase) throw new Error('Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
+  const guardians = suppliedGuardians?.length ? suppliedGuardians : [{ name: guardianName, relation, phone }];
   if (APP_MODE === 'authenticated') {
+    const parts = name.trim().split(/\s+/);
+    const studentKey = name.trim().toLowerCase().replace(/\s+/g, ' ');
     return importStudents({
-      students: [{ first_name: name.trim().split(/\s+/).slice(0, -1).join(' ') || name.trim(), last_name: name.trim().split(/\s+/).at(-1) || '' }],
-      guardians: [{ student_key: name.trim().toLowerCase().replace(/\s+/g, ' '), name: guardianName, relationship: relation, phone }],
+      students: [{ student_key: studentKey, first_name: parts.slice(0, -1).join(' ') || parts[0], last_name: parts.at(-1) || '', name: name.trim() }],
+      guardians: guardians.map(guardian => ({ student_key: studentKey, name: guardian.name, relationship: guardian.relation, phone: guardian.phone })),
     });
   }
   const initials = name.split(/\s+/).filter(Boolean).map(part => part[0]).join('').slice(0, 2).toUpperCase();
   const { data: student, error: studentError } = await supabase.from('students').insert({ name, initials, accent: 'sage' }).select('id, name, initials, accent').single();
   if (studentError) throw studentError;
-  const { error: guardianError } = await supabase.from('guardians').insert({ student_id: student.id, name: guardianName, relation, phone });
+  const { error: guardianError } = await supabase.from('guardians').insert(guardians.map(guardian => ({ student_id: student.id, name: guardian.name, relation: guardian.relation, phone: guardian.phone })));
   if (guardianError) throw guardianError;
   return student;
 }
