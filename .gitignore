@@ -1,0 +1,11 @@
+.env.local
+.env.*.local
+node_modules/
+dist/
+.playwright-cli/
+.supabase/
+supabase/.temp/
+__pycache__/
+*.py[cod]
+*.zip
+.DS_Store

@@ -1,0 +1,17 @@
+[functions.start-call]
+verify_jwt = true
+
+[functions.twilio-webhook]
+verify_jwt = false
+
+[functions.sync-call-status]
+verify_jwt = true
+
+[functions.create-voice-upload]
+verify_jwt = false
+
+[functions.transcribe-voice-note]
+verify_jwt = false
+
+[functions.get-transcript-status]
+verify_jwt = false
