@@ -1,10 +1,24 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  contextSavedMessage,
   homeEntryForMode,
   studentSelectForMode,
   shouldShowDemoGuide,
 } from '../src/lib/app-config.js';
+
+test('saved context only offers an AI update when the provider is enabled', () => {
+  assert.deepEqual(contextSavedMessage(false), {
+    title: 'New context saved.',
+    detail: 'This note is saved with the student record.',
+    actionLabel: null,
+  });
+  assert.deepEqual(contextSavedMessage(true), {
+    title: 'New context saved.',
+    detail: 'Update the AI Contact Summary with this note?',
+    actionLabel: 'Update AI Summary',
+  });
+});
 
 test('authenticated mode hides the demo guide', () => {
   assert.equal(shouldShowDemoGuide('authenticated'), false);

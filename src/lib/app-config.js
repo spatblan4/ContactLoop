@@ -39,3 +39,19 @@ export function homeEntryForMode(mode = APP_MODE) {
     secondaryLabel: null,
   };
 }
+
+export function contextSavedMessage(aiEnabled) {
+  if (!aiEnabled) {
+    return {
+      title: 'New context saved.',
+      detail: 'This note is saved with the student record.',
+      actionLabel: null,
+    };
+  }
+
+  return {
+    title: 'New context saved.',
+    detail: 'Update the AI Contact Summary with this note?',
+    actionLabel: 'Update AI Summary',
+  };
+}
