@@ -7,11 +7,21 @@ const bucket = Deno.env.get('GCS_VOICE_BUCKET');
 
 const configuredOrigins = (Deno.env.get('CONTACTLOOP_ALLOWED_ORIGIN') || '*').split(/\s*,\s*/).filter(Boolean);
 
+function equivalentLoopbackOrigin(requestOrigin: string, configuredOrigin: string) {
+  if (!requestOrigin || !configuredOrigin) return false;
+  const normalizedRequest = requestOrigin
+    .replace('://localhost:', '://127.0.0.1:')
+    .replace('://127.0.0.1:', '://localhost:');
+  return normalizedRequest === configuredOrigin;
+}
+
 export function corsHeadersFor(request?: Request) {
   const requestOrigin = request?.headers.get('origin') || '';
   const allowOrigin = configuredOrigins.includes('*')
     ? '*'
-    : (configuredOrigins.includes(requestOrigin) ? requestOrigin : configuredOrigins[0] || '*');
+    : (configuredOrigins.includes(requestOrigin) || configuredOrigins.some(origin => equivalentLoopbackOrigin(requestOrigin, origin))
+      ? requestOrigin
+      : configuredOrigins[0] || '*');
   return {
   'Access-Control-Allow-Origin': allowOrigin,
   'Vary': 'Origin',

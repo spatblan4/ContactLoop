@@ -47,6 +47,17 @@ export function buildDraftVersion(previous, brief) {
   };
 }
 
+export function summaryEditPlan(result) {
+  const approved = result?.status === 'approved' || result?.approved === true;
+  if (approved) {
+    return { mode: 'new-version', previousId: result.id ?? null, version: (result.version ?? 0) + 1 };
+  }
+  if (result?.id) {
+    return { mode: 'update', id: result.id, version: result.version ?? 1 };
+  }
+  return { mode: 'create', version: result?.version ?? 1 };
+}
+
 export function approvedBriefStatus() {
   return 'approved';
 }

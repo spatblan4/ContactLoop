@@ -8,6 +8,7 @@ import {
   cancelBriefEdits,
   buildDraftVersion,
   approvedBriefStatus,
+  summaryEditPlan,
 } from '../src/lib/ai-summary-editor.js';
 
 const brief = {
@@ -44,5 +45,18 @@ test('new generated version is draft and prior approved version is superseded', 
   assert.deepEqual(buildDraftVersion({ id: 'v1', version: 1, status: 'approved' }, brief), {
     previous: { id: 'v1', status: 'superseded' },
     next: { version: 2, status: 'draft', brief },
+  });
+});
+
+test('editing an approved summary creates a new draft version', () => {
+  assert.deepEqual(summaryEditPlan({ id: 'v1', version: 1, status: 'approved' }), {
+    mode: 'new-version',
+    previousId: 'v1',
+    version: 2,
+  });
+  assert.deepEqual(summaryEditPlan({ id: 'v2', version: 2, status: 'draft' }), {
+    mode: 'update',
+    id: 'v2',
+    version: 2,
   });
 });

@@ -1,13 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
 import { nextAttemptNumber } from './contact-attempts.js';
 import { edgeFunctionError } from './edge-errors.js';
-import { APP_MODE } from './app-config.js';
+import { APP_MODE, studentSelectForMode } from './app-config.js';
+import { studentDeletionRequests } from './student-actions.js';
 
 const supabaseUrl = import.meta.env?.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env?.VITE_SUPABASE_ANON_KEY;
 
 export const hasSupabaseConfig = Boolean(supabaseUrl && supabaseAnonKey);
 export const supabase = hasSupabaseConfig ? createClient(supabaseUrl, supabaseAnonKey) : null;
+
+export function shouldUseOwnerDerivedStudentInsert({ appMode = APP_MODE, session } = {}) {
+  return appMode === 'authenticated' || Boolean(session);
+}
 
 async function invokeEdgeFunction(name, body) {
   if (!supabase) throw new Error('Supabase is not configured.');
@@ -38,7 +43,7 @@ export async function invokeContactBrief(body) {
 export async function loadContactLoopData() {
   if (!supabase) return { students: [], events: [], followUps: [], teacherNotes: [], setupRequired: true };
 
-  let studentsResult = await supabase.from('students').select('id, name, first_name, last_name, initials, accent, guardians(id, name, relation, phone, email, preferred_contact_method)').order('name');
+  let studentsResult = await supabase.from('students').select(studentSelectForMode()).order('name');
   if (studentsResult.error && /column|relationship|email|first_name|last_name/i.test(studentsResult.error.message || '')) {
     studentsResult = await supabase.from('students').select('id, name, initials, accent, guardians(id, name, relation, phone)').order('name');
   }
@@ -154,7 +159,9 @@ export async function updateFollowUp(id, updates) {
 export async function createStudent({ name, guardianName, relation, phone, guardians: suppliedGuardians }) {
   if (!supabase) throw new Error('Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
   const guardians = suppliedGuardians?.length ? suppliedGuardians : [{ name: guardianName, relation, phone }];
-  if (APP_MODE === 'authenticated') {
+  const sessionResult = await supabase.auth?.getSession?.();
+  const session = sessionResult?.data?.session ?? null;
+  if (shouldUseOwnerDerivedStudentInsert({ session })) {
     const parts = name.trim().split(/\s+/);
     const studentKey = name.trim().toLowerCase().replace(/\s+/g, ' ');
     return importStudents({
@@ -168,6 +175,27 @@ export async function createStudent({ name, guardianName, relation, phone, guard
   const { error: guardianError } = await supabase.from('guardians').insert(guardians.map(guardian => ({ student_id: student.id, name: guardian.name, relation: guardian.relation, phone: guardian.phone })));
   if (guardianError) throw guardianError;
   return student;
+}
+
+const OPTIONAL_STUDENT_TABLES = new Set(['teacher_notes', 'ai_contact_briefs']);
+
+function canIgnoreMissingStudentTable(table, error) {
+  const message = error?.message || '';
+  return OPTIONAL_STUDENT_TABLES.has(table) &&
+    (error?.code === '42P01' || error?.code === 'PGRST205' || /does not exist|schema cache/i.test(message));
+}
+
+export async function deleteStudent(studentId) {
+  if (!supabase) throw new Error('Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
+  const id = String(studentId || '').trim();
+  if (!id) throw new Error('Student id is required.');
+
+  // Delete dependents first so this works even when older schemas do not use
+  // ON DELETE CASCADE. The final student delete is intentionally last.
+  for (const request of studentDeletionRequests(id)) {
+    const { error } = await supabase.from(request.table).delete().eq(request.column, request.value);
+    if (error && !canIgnoreMissingStudentTable(request.table, error)) throw error;
+  }
 }
 
 export async function saveAiContactBrief({ studentId, dateFrom, dateTo, version = 1, status = 'draft', brief }) {

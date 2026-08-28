@@ -21,3 +21,20 @@
 - 已完成 Auth helper、demo/authenticated 环境切换、owner-derived `import_students` RPC client，以及 authenticated trial 的 Supabase SQL patch。
 - 已添加 `npm test`，当前 55 个测试全部通过；`npm run build` 已通过，仅有 bundle size warning。
 - 已为旧 Demo 表结构增加读取 fallback，避免 demo 项目因新字段不存在而无法加载。
+
+## 2026-08-26 项目健康审计
+
+- 已读取并遵循系统化调试、TDD、验证、计划和代码审查规范。
+- 已记录当前工作区状态：存在历史用户改动和未提交文件，后续只做证据驱动的审计与低风险修复。
+- 下一步：建立完整模块/数据流地图并核对 Supabase 字段、状态和事件边界。
+- 已记录一个疑似 Twilio provider 参数缺陷、Student Detail topic 展示一致性风险，以及 schema/deployment 漂移风险；尚未进行破坏性清理。
+- 已确认 `.gitignore` 已覆盖本地环境变量、Playwright 日志、Python 缓存和 zip 构建产物；同时记录了 active/legacy Students renderer、硬编码 dashboard 日期和 `window.prompt()` 编辑入口作为后续核查项。
+- 基线验证：`npm test` 通过 59/59；`npm run build` 通过，只有 bundle 超过 500 kB 的提示。下一步需要补浏览器级关键流程验证，并继续核对后端与页面的真实连接。
+
+## 2026-08-27 项目健康审计完成
+
+- 已完成 AI Summary 编辑处理器、Follow-up 去重/Connected 自动关闭判断、应用内 Reschedule 弹窗、动态日期、Meeting Brief teacher notes 同步和冗余绑定清理。
+- 已补充相应的领域测试与回归测试；最终 `npm test` 通过 66/66。
+- 已通过 `npm run build` 和 `git diff --check`；构建仅剩 bundle size warning。
+- 已完成浏览器 smoke 验收：首页、Demo Dashboard、日期筛选、Call Parent 主题选择、Students 搜索/添加入口、Follow-ups 分组与菜单、Contact Log 筛选/详情/导出入口、Student Detail notes/AI 编辑器、Meeting Brief 设置和 Print 入口。
+- 当前审计结论：本地 UI 与可确定性业务逻辑链路正常；真实 Twilio、Supabase 部署环境、Google Speech/Transcribe、Bedrock/Strands 仍需使用云端配置做一次 live integration test，不能用本地测试冒充已验证。

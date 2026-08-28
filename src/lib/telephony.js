@@ -1,6 +1,6 @@
 import { supabase } from './supabase.js';
 
-export const TELEPHONY_PROVIDER = import.meta.env.VITE_TELEPHONY_PROVIDER || 'mock';
+export const TELEPHONY_PROVIDER = import.meta.env?.VITE_TELEPHONY_PROVIDER || 'mock';
 
 export class MockTelephonyProvider {
   async startCall(studentId, { plannedTopic = null } = {}) {
@@ -13,9 +13,13 @@ export class MockTelephonyProvider {
 }
 
 export class TwilioTelephonyProvider {
-  async startCall(studentId) {
-    if (!supabase) throw new Error('Supabase is not configured.');
-    const { data, error } = await supabase.functions.invoke('start-call', { body: { studentId, plannedTopic } });
+  constructor(client = supabase) {
+    this.client = client;
+  }
+
+  async startCall(studentId, { plannedTopic = null } = {}) {
+    if (!this.client) throw new Error('Supabase is not configured.');
+    const { data, error } = await this.client.functions.invoke('start-call', { body: { studentId, plannedTopic } });
     if (error) {
       let message = error.message;
       try {
@@ -30,8 +34,8 @@ export class TwilioTelephonyProvider {
   }
 
   async syncCallStatus(eventId = null) {
-    if (!supabase) throw new Error('Supabase is not configured.');
-    const { data, error } = await supabase.functions.invoke('sync-call-status', {
+    if (!this.client) throw new Error('Supabase is not configured.');
+    const { data, error } = await this.client.functions.invoke('sync-call-status', {
       body: eventId ? { eventId } : {},
     });
     if (error) {

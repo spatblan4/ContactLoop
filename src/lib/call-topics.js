@@ -17,3 +17,10 @@ export function discussedTopicsForEvent(event) {
   if (Array.isArray(event.discussed_topics) && event.discussed_topics.length) return event.discussed_topics;
   return event.topic ? [event.topic] : [];
 }
+
+export function eventTopicSummary(event) {
+  return {
+    planned: event?.plannedTopic ?? event?.planned_topic ?? null,
+    discussed: discussedTopicsForEvent(event),
+  };
+}

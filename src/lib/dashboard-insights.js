@@ -1,5 +1,6 @@
 import { filterEventsByRange } from './date-filters.js';
 import { discussedTopicsForEvent } from './call-topics.js';
+import { effectiveOpenFollowUps } from './followup-items.js';
 
 const FINAL_RESULTS = new Set(['Connected', 'No Answer', 'Busy', 'Failed']);
 const UNSUCCESSFUL_RESULTS = new Set(['No Answer', 'Busy', 'Failed']);
@@ -50,7 +51,7 @@ export function getDashboardInsights({ events = [], students = [], followUps = [
   const finalEvents = events.filter(event => FINAL_RESULTS.has(event.result));
   const rangeEvents = filterEventsByRange(finalEvents, range, now);
   const weekEvents = filterEventsByRange(finalEvents, { preset: 'this-week' }, now);
-  const openFollowUps = followUps.filter(followUp => (followUp.status ?? 'open') === 'open');
+  const openFollowUps = effectiveOpenFollowUps({ followUps, events });
   const dueFollowUps = openFollowUps.filter(followUp => dueTodayOrOverdue(followUp, now));
   const todayEnd = addDays(startOfDay(now), 1).getTime();
 

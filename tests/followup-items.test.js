@@ -33,3 +33,14 @@ test('overdue follow-ups are prioritized in TODAY', () => {
   assert.equal(followUpGroup('2026-08-24T09:00:00-07:00', now), 'TODAY');
   assert.equal(followUpGroup('2026-08-26T09:00:00-07:00', now), 'TOMORROW');
 });
+
+test('connected latest contact removes a stale open follow-up', () => {
+  const items = buildFollowUpItems({
+    followUps: [{ id: 'stale', student_id: 'ava', guardian_id: 'dad', due_at: '2026-08-27T09:00:00-07:00', status: 'open' }],
+    events: [{ studentId: 'ava', guardianId: 'dad', result: 'Connected', callTime: '2026-08-26T11:18:00-07:00' }],
+    students,
+    now,
+  });
+
+  assert.equal(items.length, 0);
+});

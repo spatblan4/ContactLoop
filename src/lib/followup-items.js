@@ -31,6 +31,22 @@ function sameTask(left, right) {
     && (!followUpGuardianId(left) || !followUpGuardianId(right) || followUpGuardianId(left) === followUpGuardianId(right));
 }
 
+function belongsToFollowUp(event, followUp) {
+  const sameStudent = (event.studentId ?? event.student_id) === followUpStudentId(followUp);
+  const guardianId = followUpGuardianId(followUp);
+  const sameGuardian = !guardianId || !event.guardianId || event.guardianId === guardianId || event.guardian_id === guardianId;
+  return sameStudent && sameGuardian;
+}
+
+export function effectiveOpenFollowUps({ followUps = [], events = [] }) {
+  return followUps
+    .filter(followUp => (followUp.status ?? 'open') === 'open')
+    .filter(followUp => {
+      const latest = sortNewest(events.filter(event => belongsToFollowUp(event, followUp)))[0];
+      return latest?.result !== 'Connected';
+    });
+}
+
 export function followUpGroup(value, now = new Date()) {
   const due = startOfDay(new Date(value));
   const today = startOfDay(now);
@@ -41,7 +57,7 @@ export function followUpGroup(value, now = new Date()) {
 }
 
 export function buildFollowUpItems({ followUps = [], events = [], students = [], now = new Date() }) {
-  const openFollowUps = followUps.filter(followUp => (followUp.status ?? 'open') === 'open');
+  const openFollowUps = effectiveOpenFollowUps({ followUps, events });
   const uniqueFollowUps = openFollowUps.filter((followUp, index, all) => all.findIndex(candidate => sameTask(candidate, followUp)) === index);
 
   return uniqueFollowUps.map(followUp => {
