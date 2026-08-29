@@ -17,3 +17,10 @@ export function studentDeletionRequests(studentId) {
     { table: 'students', column: 'id', value: studentId },
   ];
 }
+
+export function studentUpdateRequests({ studentId, guardianId, name, guardianName, relation, phone }) {
+  return [
+    { table: 'students', column: 'id', value: studentId, updates: { name } },
+    { table: 'guardians', column: 'id', value: guardianId, updates: { name: guardianName, relation, phone } },
+  ];
+}

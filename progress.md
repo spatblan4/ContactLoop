@@ -38,3 +38,16 @@
 - 已通过 `npm run build` 和 `git diff --check`；构建仅剩 bundle size warning。
 - 已完成浏览器 smoke 验收：首页、Demo Dashboard、日期筛选、Call Parent 主题选择、Students 搜索/添加入口、Follow-ups 分组与菜单、Contact Log 筛选/详情/导出入口、Student Detail notes/AI 编辑器、Meeting Brief 设置和 Print 入口。
 - 当前审计结论：本地 UI 与可确定性业务逻辑链路正常；真实 Twilio、Supabase 部署环境、Google Speech/Transcribe、Bedrock/Strands 仍需使用云端配置做一次 live integration test，不能用本地测试冒充已验证。
+
+## 2026-08-28 meeting brief print fix
+
+- Fixed print layout root cause in `src/styles.css`: print now resets the app shell to one column and restores desktop brief columns.
+- Added a CSS contract regression test in `tests/meeting-brief.test.js`.
+- Verification evidence: `npm test` 80/80 passed, `npm run build` passed, and `git diff --check` passed.
+- Browser print CLI did not return a snapshot or evaluation result in this environment, so visual print-preview verification remains an explicit limitation.
+- Current follow-up completed: publish the repaired frontend and the new repair tracker page to the linked Vercel project.
+
+- Deployed production to `https://contactloop-beta.vercel.app`.
+- Verified HTTP 200 for `/`, `/repair-tracker.html`, and `/docs/repair-tracker.html` (Vercel rewrite).
+- Demo deployment also reached READY at `https://contactloop-demo.vercel.app`; verified HTTP 200 for the demo root and `/docs/repair-tracker.html`.
+- Resolved demo `Invalid API key`: the prior deployment had a malformed build-time anon key; redeployed from `.env.demo.local`, and the real `students` REST query now returns HTTP 200.

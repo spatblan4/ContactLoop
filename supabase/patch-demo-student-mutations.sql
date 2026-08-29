@@ -1,18 +1,17 @@
 -- Apply only to the disposable Demo Supabase project.
--- The demo uses anon access, so these policies intentionally allow deleting
--- demo records. Never apply this file to the Beta / user-data project.
+-- Enables the student edit and delete actions used by the public Demo app.
 
 alter table public.students enable row level security;
 alter table public.guardians enable row level security;
 alter table public.follow_ups enable row level security;
 alter table public.contact_events enable row level security;
 
+drop policy if exists "demo update students" on public.students;
+drop policy if exists "demo update guardians" on public.guardians;
 drop policy if exists "demo delete students" on public.students;
 drop policy if exists "demo delete guardians" on public.guardians;
 drop policy if exists "demo delete follow ups" on public.follow_ups;
 drop policy if exists "demo delete events" on public.contact_events;
-drop policy if exists "demo update students" on public.students;
-drop policy if exists "demo update guardians" on public.guardians;
 
 create policy "demo update students" on public.students
   for update to anon using (true) with check (true);

@@ -60,6 +60,12 @@ drop policy if exists "demo update follow ups" on public.follow_ups;
 drop policy if exists "demo update events" on public.contact_events;
 drop policy if exists "demo insert students" on public.students;
 drop policy if exists "demo insert guardians" on public.guardians;
+drop policy if exists "demo update students" on public.students;
+drop policy if exists "demo update guardians" on public.guardians;
+drop policy if exists "demo delete students" on public.students;
+drop policy if exists "demo delete guardians" on public.guardians;
+drop policy if exists "demo delete follow ups" on public.follow_ups;
+drop policy if exists "demo delete events" on public.contact_events;
 
 create policy "demo read students" on public.students for select to anon using (true);
 create policy "demo read guardians" on public.guardians for select to anon using (true);
@@ -71,6 +77,12 @@ create policy "demo update follow ups" on public.follow_ups for update to anon u
 create policy "demo update events" on public.contact_events for update to anon using (true) with check (true);
 create policy "demo insert students" on public.students for insert to anon with check (true);
 create policy "demo insert guardians" on public.guardians for insert to anon with check (true);
+create policy "demo update students" on public.students for update to anon using (true) with check (true);
+create policy "demo update guardians" on public.guardians for update to anon using (true) with check (true);
+create policy "demo delete students" on public.students for delete to anon using (true);
+create policy "demo delete guardians" on public.guardians for delete to anon using (true);
+create policy "demo delete follow ups" on public.follow_ups for delete to anon using (true);
+create policy "demo delete events" on public.contact_events for delete to anon using (true);
 
 insert into public.students (id, name, initials, accent) values
   ('11111111-1111-4111-8111-111111111111', 'Emma Johnson', 'EJ', 'sage'),

@@ -61,3 +61,10 @@
 - Final verification: 66/66 Node tests pass, Vite production build passes, `git diff --check` passes, and browser smoke checks cover the homepage/demo, dashboard filters and actions, Students search/add/import entry, Follow-ups grouping/actions, Contact Log filters/topic/detail/export entry, Student Detail notes and AI editor, planned-topic call entry, and Meeting Brief settings.
 - External live integrations remain environment-dependent: real Twilio calls/status webhooks, deployed Supabase Edge Functions, Google Speech/Transcribe, and Bedrock/Strands cannot be claimed as locally verified without invoking the user's cloud services. Their request/response contracts are covered where testable.
 - Remaining non-blocking cleanup: the production bundle is approximately 647 kB minified and Vite warns about chunk size. Code splitting can be a later performance task; it is not a functional defect.
+
+## 2026-08-28 repair tracking
+
+- The repository already contains a design spec for a local-first feature/bug tracker, but no tracker HTML existed under `docs/`.
+- The tracker should remain dependency-free and must not read or mutate source files automatically; related files are recorded as plain text.
+- Vercel project linkage exists in `.vercel/project.json` for `contactloop-beta`; deployment requires the locally authenticated Vercel CLI.
+- Production deployment `dpl_GiHwY2tcsnmQH3X4ZE2THKRwvE6o` reached READY; `/docs/repair-tracker.html` is served through a rewrite to the public copy.

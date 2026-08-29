@@ -1,6 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { buildMeetingBrief } from '../src/lib/meeting-brief.js';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const styles = fs.readFileSync(path.join(here, '../src/styles.css'), 'utf8');
 
 const now = new Date(2026, 7, 25, 12);
 const students = [{ id: 'emma', name: 'Emma Johnson', relation: 'Mom', parent: 'Sarah Johnson' }];
@@ -51,4 +57,15 @@ test('meeting brief detailed history exposes confirmed teacher notes separately 
   });
   assert.equal(brief.detailedHistory.some(item => item.teacherNote === 'Parent requested transportation information.'), true);
   assert.equal(brief.detailedHistory.some(item => item.source === 'typed'), true);
+});
+
+test('print styles keep meeting brief in a full-width desktop layout', () => {
+  const printBlock = styles.slice(styles.lastIndexOf('@page'));
+
+  assert.match(printBlock, /\.app-shell\s*\{[^}]*grid-template-columns:\s*1fr/s);
+  assert.match(printBlock, /\.main\s*\{[^}]*width:\s*100%/s);
+  assert.match(printBlock, /\.brief-info-grid\s*\{[^}]*grid-template-columns:\s*repeat\(4,1fr\)/s);
+  assert.match(printBlock, /\.overview-grid\s*\{[^}]*grid-template-columns:\s*repeat\(6,1fr\)/s);
+  assert.match(printBlock, /\.brief-columns\s*\{[^}]*grid-template-columns:\s*1fr\s+1fr/s);
+  assert.match(printBlock, /@page\s*\{[^}]*margin:/s);
 });

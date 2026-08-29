@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { nextAttemptNumber } from './contact-attempts.js';
 import { edgeFunctionError } from './edge-errors.js';
 import { APP_MODE, studentSelectForMode } from './app-config.js';
-import { studentDeletionRequests } from './student-actions.js';
+import { studentDeletionRequests, studentUpdateRequests } from './student-actions.js';
 
 const supabaseUrl = import.meta.env?.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env?.VITE_SUPABASE_ANON_KEY;
@@ -175,6 +175,16 @@ export async function createStudent({ name, guardianName, relation, phone, guard
   const { error: guardianError } = await supabase.from('guardians').insert(guardians.map(guardian => ({ student_id: student.id, name: guardian.name, relation: guardian.relation, phone: guardian.phone })));
   if (guardianError) throw guardianError;
   return student;
+}
+
+export async function updateStudent({ studentId, guardianId, name, guardianName, relation, phone }) {
+  if (!supabase) throw new Error('Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
+  const updates = studentUpdateRequests({ studentId, guardianId, name, guardianName, relation, phone });
+  if (!updates[0].value || !updates[1].value) throw new Error('Student and guardian ids are required.');
+  const { error: studentError } = await supabase.from('students').update(updates[0].updates).eq(updates[0].column, updates[0].value);
+  if (studentError) throw studentError;
+  const { error: guardianError } = await supabase.from('guardians').update(updates[1].updates).eq(updates[1].column, updates[1].value);
+  if (guardianError) throw guardianError;
 }
 
 const OPTIONAL_STUDENT_TABLES = new Set(['teacher_notes', 'ai_contact_briefs']);

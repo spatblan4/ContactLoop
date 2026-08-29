@@ -22,3 +22,9 @@
 - 当前项目存在 demo RLS 和匿名数据，不能直接满足 `teacher_id = auth.uid()`。
 - 当前 `students` 使用 `name` / `initials`，`guardians` 使用 `relation` / 必填 `phone`；导入方案需要兼容现有读写代码或提供迁移兼容层。
 - 当前 `package.json` 没有 CSV/XLSX 解析依赖，需要决定是否增加可审计的解析库，或实现受限解析器。
+
+## 阶段 6：修复追踪页与部署
+
+- [completed] 创建 `docs/repair-tracker.html`，记录 meeting brief 打印修复、验证证据和部署状态。
+- [completed] 将追踪页与前端修复部署到已关联的 Vercel 项目。
+- [completed] 验证部署地址可访问，记录 URL 和任何环境限制。

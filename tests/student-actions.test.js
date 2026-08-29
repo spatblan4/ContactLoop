@@ -1,6 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { studentDeletionOrder, studentDeletionRequests } from '../src/lib/student-actions.js';
+import { studentDeletionOrder, studentDeletionRequests, studentUpdateRequests } from '../src/lib/student-actions.js';
+
+test('student edit builds updates for the student and primary guardian', () => {
+  assert.deepEqual(studentUpdateRequests({
+    studentId: 'student-123',
+    guardianId: 'guardian-456',
+    name: 'Jordan Lee',
+    guardianName: 'Taylor Lee',
+    relation: 'Mom',
+    phone: '(415) 555-0199',
+  }), [
+    { table: 'students', column: 'id', value: 'student-123', updates: { name: 'Jordan Lee' } },
+    { table: 'guardians', column: 'id', value: 'guardian-456', updates: { name: 'Taylor Lee', relation: 'Mom', phone: '(415) 555-0199' } },
+  ]);
+});
 
 test('student deletion removes dependent records before guardians and students', () => {
   const order = studentDeletionOrder();

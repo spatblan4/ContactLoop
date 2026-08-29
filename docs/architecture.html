@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ContactLoop · 当前项目架构</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101513;
+      --panel: #18211d;
+      --panel-soft: #202c26;
+      --ink: #edf5ee;
+      --muted: #a8b8ad;
+      --accent: #b8e986;
+      --line: #3d5547;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at 15% 0%, #26392d 0, var(--bg) 38rem);
+      color: var(--ink);
+      font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    main { width: min(1500px, calc(100% - 40px)); margin: 0 auto; padding: 56px 0 72px; }
+    header { display: flex; justify-content: space-between; gap: 24px; align-items: end; margin-bottom: 28px; }
+    .eyebrow { margin: 0 0 8px; color: var(--accent); font-size: 12px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(30px, 5vw, 58px); line-height: 1; letter-spacing: -.04em; }
+    .intro { max-width: 560px; margin: 0; color: var(--muted); }
+    .diagram-shell { overflow: auto; padding: 28px; border: 1px solid var(--line); border-radius: 24px; background: color-mix(in srgb, var(--panel) 92%, transparent); box-shadow: 0 24px 80px #0006; }
+    .mermaid { min-width: 1080px; text-align: center; }
+    .legend { display: flex; flex-wrap: wrap; gap: 10px 20px; margin-top: 18px; color: var(--muted); font-size: 13px; }
+    .legend span::before { content: ""; display: inline-block; width: 24px; margin: 0 7px 3px 0; border-top: 2px solid var(--accent); }
+    .legend .dashed::before { border-top-style: dashed; border-color: #e0b768; }
+    footer { margin-top: 22px; color: var(--muted); font-size: 13px; }
+    code { color: var(--accent); }
+    @media (max-width: 700px) { main { width: min(100% - 24px, 1500px); padding-top: 30px; } header { display: block; } .intro { margin-top: 16px; } .diagram-shell { padding: 12px; border-radius: 16px; } }
+  </style>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true, theme: 'base', securityLevel: 'strict', themeVariables: {
+      background: '#18211d', primaryColor: '#26382c', primaryTextColor: '#edf5ee', primaryBorderColor: '#9bcf74',
+      lineColor: '#b8e986', secondaryColor: '#29352f', tertiaryColor: '#202c26', clusterBkg: '#141c18', clusterBorder: '#506856',
+      edgeLabelBackground: '#18211d', fontFamily: 'ui-sans-serif, system-ui, sans-serif'
+    }});
+  </script>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <p class="eyebrow">ContactLoop · system map</p>
+        <h1>当前项目架构</h1>
+      </div>
+      <p class="intro">基于仓库中的前端模块、Supabase Edge Functions、数据库 schema 与 AI/语音集成代码整理。</p>
+    </header>
+
+    <section class="diagram-shell" aria-label="ContactLoop 当前项目架构 Mermaid 图">
+      <div class="mermaid">
+flowchart LR
+  Teacher[教师 / 用户]
+
+  subgraph Browser[浏览器端 · Vite SPA]
+    UI[Dashboard / Students / Follow-ups / Contact Log]
+    Domain[src/lib 领域模块]
+    AuthClient[Supabase Auth client]
+    SupabaseClient[Supabase JS client]
+    VoiceUI[语音笔记与通话 UI]
+  end
+
+  subgraph Supabase[Supabase 项目]
+    Auth[Supabase Auth]
+    DB[(Postgres)]
+    Tables[students · guardians\ncontact_events · follow_ups\nteacher_notes · ai_contact_briefs]
+    Edge[Supabase Edge Functions]
+    CallStart[start-call]
+    CallSync[sync-call-status]
+    TwilioHook[twilio-webhook]
+    BriefProxy[contact-brief-proxy]
+    VoiceUpload[create-voice-upload]
+    Transcribe[transcribe-voice-note]
+    Transcript[get-transcript-status]
+  end
+
+  subgraph Telephony[外部通话服务]
+    Twilio[Twilio Voice API]
+  end
+
+  subgraph Google[Google Cloud 语音转写]
+    GCS[(Google Cloud Storage\nvoice-notes bucket)]
+    Speech[Cloud Speech-to-Text]
+  end
+
+  subgraph AI[AI Contact Brief 服务]
+    Lambda[AWS Lambda / Function URL]
+    Strands[Strands Agents provider]
+    Bedrock[Amazon Bedrock\nClaude model]
+  end
+
+  Teacher --> UI
+  UI --> Domain
+  Domain --> AuthClient
+  Domain --> SupabaseClient
+  AuthClient --> Auth
+  SupabaseClient --> DB
+  DB --> Tables
+
+  Domain -->|start call| Edge
+  Edge --> CallStart
+  CallStart -->|create call| Twilio
+  CallStart -->|insert Initiated event| DB
+  Twilio -.->|status callback| TwilioHook
+  TwilioHook -->|update event| DB
+  Domain -.->|poll status| CallSync
+  CallSync -->|read/update event| DB
+  CallSync -->|query status| Twilio
+
+  VoiceUI -->|request signed upload| VoiceUpload
+  VoiceUpload -.->|signed PUT URL| GCS
+  VoiceUI -->|start transcription| Transcribe
+  Transcribe -->|long-running job| Speech
+  Speech -->|read audio object| GCS
+  VoiceUI -.->|poll operation| Transcript
+  Transcript -->|query operation| Speech
+  Transcript -.->|delete after completion| GCS
+  VoiceUI -->|save confirmed note| DB
+
+  Domain -->|generate brief| BriefProxy
+  BriefProxy -->|POST /contact-brief| Lambda
+  Lambda --> Strands
+  Strands -->|read-only REST / RPC| DB
+  Strands --> Bedrock
+  Bedrock --> Strands
+  Lambda -.->|pending review payload| BriefProxy
+  BriefProxy -->|save / edit / approve brief| DB
+
+  classDef browser fill:#26382c,stroke:#b8e986,color:#edf5ee;
+  classDef supabase fill:#203a36,stroke:#66c8b4,color:#edf5ee;
+  classDef external fill:#302b20,stroke:#e0b768,color:#fff5dc;
+  classDef data fill:#202a35,stroke:#87b9e8,color:#edf5ee;
+  class UI,Domain,AuthClient,SupabaseClient,VoiceUI browser;
+  class Auth,DB,Tables,Edge,CallStart,CallSync,TwilioHook,BriefProxy,VoiceUpload,Transcribe,Transcript supabase;
+  class Twilio,GCS,Speech,Lambda,Strands,Bedrock external;
+  class Tables,GCS data;
+      </div>
+      <div class="legend" aria-label="图例">
+        <span>同步请求 / 数据流</span>
+        <span class="dashed">异步回调、轮询或可选路径</span>
+      </div>
+    </section>
+    <footer>数据边界：浏览器只使用 Supabase anon key；服务端 secrets 保留在 Edge Functions / AWS 服务端。</footer>
+  </main>
+</body>
+</html>

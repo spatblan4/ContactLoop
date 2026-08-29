@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/docs/repair-tracker.html",
+      "destination": "/repair-tracker.html"
+    }
+  ]
+}
