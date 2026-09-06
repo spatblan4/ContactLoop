@@ -1,216 +1,112 @@
+// Compatibility facade: the UI keeps importing from this module, but every data
+// operation now goes through the fetch-based FastAPI client in ./api/.
+// The `supabase` export remains only for Supabase Auth (src/lib/auth.js) and
+// the Twilio telephony provider when VITE_SUPABASE_URL is configured.
 import { createClient } from '@supabase/supabase-js';
-import { nextAttemptNumber } from './contact-attempts.js';
-import { edgeFunctionError } from './edge-errors.js';
-import { APP_MODE, studentSelectForMode } from './app-config.js';
-import { studentDeletionRequests, studentUpdateRequests } from './student-actions.js';
+import { APP_MODE } from './app-config.js';
+import { hasBackendConfig } from './api/client.js';
+import * as studentsApi from './api/students.js';
+import * as guardiansApi from './api/guardians.js';
+import * as contactEventsApi from './api/contact-events.js';
+import * as followUpsApi from './api/follow-ups.js';
+import * as teacherNotesApi from './api/teacher-notes.js';
+import * as aiBriefsApi from './api/ai-briefs.js';
+import * as dataApi from './api/data.js';
+import * as importsApi from './api/imports.js';
+import * as voiceApi from './api/voice.js';
+import { generateContactBrief } from './api/contact-brief.js';
 
 const supabaseUrl = import.meta.env?.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env?.VITE_SUPABASE_ANON_KEY;
 
 export const hasSupabaseConfig = Boolean(supabaseUrl && supabaseAnonKey);
-export const supabase = hasSupabaseConfig ? createClient(supabaseUrl, supabaseAnonKey) : null;
+
+let supabaseClient = null;
+if (hasSupabaseConfig) {
+  try {
+    supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+  } catch {
+    supabaseClient = null;
+  }
+}
+export const supabase = supabaseClient;
+
+export { hasBackendConfig };
 
 export function shouldUseOwnerDerivedStudentInsert({ appMode = APP_MODE, session } = {}) {
   return appMode === 'authenticated' || Boolean(session);
 }
 
-async function invokeEdgeFunction(name, body) {
-  if (!supabase) throw new Error('Supabase is not configured.');
-  const { data, error } = await supabase.functions.invoke(name, { body });
-  if (!error) return data;
-
-  // FunctionsHttpError keeps the actual Response in `context`. Surface the
-  // server's JSON message so the UI can tell a configuration problem from an
-  // upload or transcription problem.
-  let detail = '';
-  try {
-    const response = error.context;
-    if (response?.clone) {
-      const payload = await response.clone().json();
-      detail = payload?.error || payload?.message || '';
-    }
-  } catch {
-    // Keep the SDK message when the response is not JSON (for example, a CORS
-    // or network failure).
-  }
-  throw new Error(detail || edgeFunctionError(error, name));
-}
-
-export async function invokeContactBrief(body) {
-  return invokeEdgeFunction('contact-brief-proxy', body);
-}
-
 export async function loadContactLoopData() {
-  if (!supabase) return { students: [], events: [], followUps: [], teacherNotes: [], setupRequired: true };
-
-  let studentsResult = await supabase.from('students').select(studentSelectForMode()).order('name');
-  if (studentsResult.error && /column|relationship|email|first_name|last_name/i.test(studentsResult.error.message || '')) {
-    studentsResult = await supabase.from('students').select('id, name, initials, accent, guardians(id, name, relation, phone)').order('name');
+  if (!hasBackendConfig()) {
+    return { students: [], events: [], followUps: [], teacherNotes: [], aiBriefs: [], setupRequired: true };
   }
-  const [eventsResult, followUpsResult, aiBriefsResult, teacherNotesResult] = await Promise.all([
-    supabase.from('contact_events').select('id, student_id, guardian_id, call_time, duration_seconds, result, attempt_number, topic, planned_topic, discussed_topics, teacher_note, follow_up_id, provider, provider_call_id, provider_status, started_at, ended_at').order('call_time', { ascending: false }),
-    supabase.from('follow_ups').select('id, student_id, guardian_id, due_at, status, contact_event_id').eq('status', 'open').order('due_at'),
-    supabase.from('ai_contact_briefs').select('*').neq('status', 'superseded').order('version', { ascending: false }),
-    supabase.from('teacher_notes').select('id, student_id, content, source, teacher_confirmed, created_at').order('created_at', { ascending: false }),
-  ]);
-
-  const missingBriefTable = aiBriefsResult.error?.code === '42P01' || aiBriefsResult.error?.message?.includes('ai_contact_briefs');
-  const missingTeacherNotesTable = teacherNotesResult.error?.code === '42P01' || teacherNotesResult.error?.message?.includes('teacher_notes');
-  const firstError = studentsResult.error || eventsResult.error || followUpsResult.error || (missingBriefTable ? null : aiBriefsResult.error) || (missingTeacherNotesTable ? null : teacherNotesResult.error);
-  if (firstError) throw firstError;
-
+  const data = (await dataApi.loadContactLoopData()) ?? {};
   return {
-    students: studentsResult.data ?? [],
-    events: eventsResult.data ?? [],
-    followUps: followUpsResult.data ?? [],
-    aiBriefs: missingBriefTable ? [] : (aiBriefsResult.data ?? []),
-    teacherNotes: missingTeacherNotesTable ? [] : (teacherNotesResult.data ?? []),
+    students: data.students ?? [],
+    events: data.events ?? [],
+    followUps: data.follow_ups ?? [],
+    teacherNotes: data.teacher_notes ?? [],
+    aiBriefs: data.ai_briefs ?? [],
     setupRequired: false,
   };
 }
 
-export async function importStudents(payload, client = supabase) {
-  if (!client?.rpc) throw new Error('Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
-  const { data, error } = await client.rpc('import_students', {
-    p_students: payload?.students ?? [],
-    p_guardians: payload?.guardians ?? [],
+export async function importStudents(payload) {
+  const result = await importsApi.importStudents({
+    students: payload?.students ?? [],
+    guardians: payload?.guardians ?? [],
   });
-  if (error) throw new Error(error.message || 'Unable to import students.');
-  return data;
+  return {
+    students_imported: result?.imported_students ?? 0,
+    guardians_imported: result?.imported_guardians ?? 0,
+  };
 }
 
 export async function createContactEvent({ studentId, guardianId, result, durationSeconds, plannedTopic, discussedTopics, topic, teacherNote, followUpDueAt }) {
-  if (!supabase) throw new Error('Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
-
-  const { data: attemptEvents, error: countError } = await supabase
-    .from('contact_events')
-    .select('id, student_id, guardian_id, result, call_time, attempt_number')
-    .eq('student_id', studentId)
-    .eq('guardian_id', guardianId)
-    .order('call_time', { ascending: true });
-  if (countError) throw countError;
-
-  const { data: existingFollowUps, error: followUpLookupError } = await supabase
-    .from('follow_ups')
-    .select('id')
-    .eq('student_id', studentId)
-    .eq('guardian_id', guardianId)
-    .eq('status', 'open')
-    .order('due_at')
-    .limit(1);
-  if (followUpLookupError) throw followUpLookupError;
-  const existingFollowUpId = existingFollowUps?.[0]?.id ?? null;
-
-  const { data, error } = await supabase.from('contact_events').insert({
+  return contactEventsApi.createContactEvent({
     student_id: studentId,
     guardian_id: guardianId,
-    call_time: new Date().toISOString(),
-    duration_seconds: durationSeconds ?? null,
     result,
-    attempt_number: nextAttemptNumber(attemptEvents ?? [], studentId, guardianId),
-    topic: topic || null,
+    duration_seconds: durationSeconds ?? null,
     planned_topic: plannedTopic || null,
     discussed_topics: result === 'Connected' ? (discussedTopics || (plannedTopic ? [plannedTopic] : [])) : [],
+    topic: topic || null,
     teacher_note: teacherNote || null,
-    follow_up_id: existingFollowUpId,
-  }).select('id, student_id, guardian_id, call_time, duration_seconds, result, attempt_number, topic, planned_topic, discussed_topics, teacher_note, follow_up_id').single();
-  if (error) throw error;
-
-  if (result === 'Connected') {
-    if (existingFollowUpId) {
-      const { error: closeError } = await supabase.from('follow_ups').update({ status: 'completed', contact_event_id: data.id }).eq('id', existingFollowUpId).eq('status', 'open');
-      if (closeError) throw closeError;
-    }
-    return data;
-  }
-
-  if (['No Answer', 'Busy', 'Failed'].includes(result)) {
-    let followUpId = existingFollowUpId;
-    if (followUpId) {
-      const { error: updateError } = await supabase.from('follow_ups').update({ due_at: followUpDueAt, contact_event_id: data.id, status: 'open' }).eq('id', followUpId).eq('status', 'open');
-      if (updateError) throw updateError;
-    } else {
-      const { data: createdFollowUp, error: createFollowUpError } = await supabase.from('follow_ups').insert({ due_at: followUpDueAt, student_id: studentId, guardian_id: guardianId, status: 'open', contact_event_id: data.id }).select('id').single();
-      if (createFollowUpError) {
-        if (createFollowUpError.code !== '23505') throw createFollowUpError;
-        const { data: concurrentFollowUps, error: concurrentLookupError } = await supabase.from('follow_ups').select('id').eq('student_id', studentId).eq('guardian_id', guardianId).eq('status', 'open').order('due_at').limit(1);
-        if (concurrentLookupError || !concurrentFollowUps?.[0]) throw concurrentLookupError || new Error('Unable to reuse the open follow-up.');
-        followUpId = concurrentFollowUps[0].id;
-        const { error: concurrentUpdateError } = await supabase.from('follow_ups').update({ due_at: followUpDueAt, contact_event_id: data.id }).eq('id', followUpId);
-        if (concurrentUpdateError) throw concurrentUpdateError;
-      } else {
-        followUpId = createdFollowUp.id;
-      }
-    }
-    if (!existingFollowUpId && followUpId) {
-      const { error: eventLinkError } = await supabase.from('contact_events').update({ follow_up_id: followUpId }).eq('id', data.id);
-      if (eventLinkError) throw eventLinkError;
-    }
-  }
-  return data;
+    follow_up_due_at: followUpDueAt ?? null,
+  });
 }
 
 export async function updateFollowUp(id, updates) {
-  if (!supabase) throw new Error('Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
-  const { error } = await supabase.from('follow_ups').update(updates).eq('id', id);
-  if (error) throw error;
+  return followUpsApi.updateFollowUp(id, updates);
 }
 
 export async function createStudent({ name, guardianName, relation, phone, guardians: suppliedGuardians }) {
-  if (!supabase) throw new Error('Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
   const guardians = suppliedGuardians?.length ? suppliedGuardians : [{ name: guardianName, relation, phone }];
-  const sessionResult = await supabase.auth?.getSession?.();
-  const session = sessionResult?.data?.session ?? null;
-  if (shouldUseOwnerDerivedStudentInsert({ session })) {
-    const parts = name.trim().split(/\s+/);
-    const studentKey = name.trim().toLowerCase().replace(/\s+/g, ' ');
-    return importStudents({
-      students: [{ student_key: studentKey, first_name: parts.slice(0, -1).join(' ') || parts[0], last_name: parts.at(-1) || '', name: name.trim() }],
-      guardians: guardians.map(guardian => ({ student_key: studentKey, name: guardian.name, relationship: guardian.relation, phone: guardian.phone })),
-    });
-  }
-  const initials = name.split(/\s+/).filter(Boolean).map(part => part[0]).join('').slice(0, 2).toUpperCase();
-  const { data: student, error: studentError } = await supabase.from('students').insert({ name, initials, accent: 'sage' }).select('id, name, initials, accent').single();
-  if (studentError) throw studentError;
-  const { error: guardianError } = await supabase.from('guardians').insert(guardians.map(guardian => ({ student_id: student.id, name: guardian.name, relation: guardian.relation, phone: guardian.phone })));
-  if (guardianError) throw guardianError;
-  return student;
+  const trimmed = name.trim();
+  const parts = trimmed.split(/\s+/);
+  return studentsApi.createStudent({
+    name: trimmed,
+    first_name: parts.slice(0, -1).join(' ') || parts[0],
+    last_name: parts.at(-1) || '',
+    guardians: guardians.map(guardian => ({ name: guardian.name, relation: guardian.relation, phone: guardian.phone })),
+  });
 }
 
 export async function updateStudent({ studentId, guardianId, name, guardianName, relation, phone }) {
-  if (!supabase) throw new Error('Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
-  const updates = studentUpdateRequests({ studentId, guardianId, name, guardianName, relation, phone });
-  if (!updates[0].value || !updates[1].value) throw new Error('Student and guardian ids are required.');
-  const { error: studentError } = await supabase.from('students').update(updates[0].updates).eq(updates[0].column, updates[0].value);
-  if (studentError) throw studentError;
-  const { error: guardianError } = await supabase.from('guardians').update(updates[1].updates).eq(updates[1].column, updates[1].value);
-  if (guardianError) throw guardianError;
-}
-
-const OPTIONAL_STUDENT_TABLES = new Set(['teacher_notes', 'ai_contact_briefs']);
-
-function canIgnoreMissingStudentTable(table, error) {
-  const message = error?.message || '';
-  return OPTIONAL_STUDENT_TABLES.has(table) &&
-    (error?.code === '42P01' || error?.code === 'PGRST205' || /does not exist|schema cache/i.test(message));
+  if (!studentId || !guardianId) throw new Error('Student and guardian ids are required.');
+  await studentsApi.updateStudent(studentId, { name });
+  await guardiansApi.updateGuardian(guardianId, { name: guardianName, relation, phone });
 }
 
 export async function deleteStudent(studentId) {
-  if (!supabase) throw new Error('Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
   const id = String(studentId || '').trim();
   if (!id) throw new Error('Student id is required.');
-
-  // Delete dependents first so this works even when older schemas do not use
-  // ON DELETE CASCADE. The final student delete is intentionally last.
-  for (const request of studentDeletionRequests(id)) {
-    const { error } = await supabase.from(request.table).delete().eq(request.column, request.value);
-    if (error && !canIgnoreMissingStudentTable(request.table, error)) throw error;
-  }
+  await studentsApi.deleteStudent(id);
 }
 
 export async function saveAiContactBrief({ studentId, dateFrom, dateTo, version = 1, status = 'draft', brief }) {
-  if (!supabase) throw new Error('Supabase is not configured.');
-  const { data, error } = await supabase.from('ai_contact_briefs').insert({
+  return aiBriefsApi.createAiBrief({
     student_id: studentId,
     date_from: dateFrom,
     date_to: dateTo,
@@ -221,61 +117,96 @@ export async function saveAiContactBrief({ studentId, dateFrom, dateTo, version 
     recorded_resolutions: brief.recorded_resolutions ?? [],
     open_items: brief.open_items ?? [],
     suggested_next_step: brief.suggested_next_step ?? null,
-  }).select('*').single();
-  if (error) throw error;
-  return data;
+  });
 }
 
 export async function updateAiContactBrief(id, { brief, status = 'draft' }) {
-  if (!supabase) throw new Error('Supabase is not configured.');
-  const { data, error } = await supabase.from('ai_contact_briefs').update({
+  return aiBriefsApi.updateAiBrief(id, {
     status,
     key_topics: brief.key_topics ?? [],
     parent_concerns: brief.parent_concerns ?? [],
     recorded_resolutions: brief.recorded_resolutions ?? [],
     open_items: brief.open_items ?? [],
     suggested_next_step: brief.suggested_next_step ?? null,
-    updated_at: new Date().toISOString(),
-  }).eq('id', id).select('*').single();
-  if (error) throw error;
-  return data;
+  });
 }
 
 export async function supersedeAiContactBrief(id) {
-  if (!supabase) throw new Error('Supabase is not configured.');
-  const { error } = await supabase.from('ai_contact_briefs').update({ status: 'superseded', updated_at: new Date().toISOString() }).eq('id', id);
-  if (error) throw error;
+  return aiBriefsApi.supersedeAiBrief(id);
 }
 
 export async function approveAiContactBrief(id) {
-  if (!supabase) throw new Error('Supabase is not configured.');
-  const { data, error } = await supabase.from('ai_contact_briefs').update({ status: 'approved', approved_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', id).select('*').single();
-  if (error) throw error;
-  return data;
+  return aiBriefsApi.approveAiBrief(id);
 }
 
 export async function removeAiContactBrief(id) {
-  if (!supabase) throw new Error('Supabase is not configured.');
-  const { error } = await supabase.from('ai_contact_briefs').delete().eq('id', id);
-  if (error) throw error;
+  return aiBriefsApi.deleteAiBrief(id);
 }
 
 export async function createTeacherNote({ studentId, content, source = 'voice' }) {
-  if (!supabase) throw new Error('Supabase is not configured.');
   if (!content?.trim()) throw new Error('A confirmed note is required.');
-  const { data, error } = await supabase.from('teacher_notes').insert({ student_id: studentId, content: content.trim(), source, teacher_confirmed: true }).select('*').single();
-  if (error) throw error;
-  return data;
+  return teacherNotesApi.createTeacherNote({ student_id: studentId, content: content.trim(), source });
 }
 
 export async function createVoiceUpload({ studentId, contentType }) {
-  return invokeEdgeFunction('create-voice-upload', { student_id: studentId, content_type: contentType });
+  const result = await voiceApi.createVoiceUpload({ student_id: studentId, content_type: contentType });
+  return { uploadUrl: result?.upload_url, objectKey: result?.object_key };
 }
 
 export async function startVoiceTranscription({ studentId, objectKey }) {
-  return invokeEdgeFunction('transcribe-voice-note', { student_id: studentId, object_key: objectKey });
+  const result = await voiceApi.startVoiceTranscription({ student_id: studentId, object_key: objectKey });
+  return { jobId: result?.job_id };
 }
 
 export async function getVoiceTranscriptStatus({ studentId, jobId, objectKey }) {
-  return invokeEdgeFunction('get-transcript-status', { student_id: studentId, job_id: jobId, object_key: objectKey });
+  const result = await voiceApi.getVoiceTranscription(jobId);
+  return { status: result?.status, transcript: result?.transcript };
+}
+
+export async function invokeContactBrief(body) {
+  return generateContactBrief(body);
+}
+
+export function listGuardians({ studentId } = {}) {
+  return guardiansApi.listGuardians({ student_id: studentId });
+}
+
+export function createGuardian(guardian) {
+  return guardiansApi.createGuardian(guardian);
+}
+
+export function updateGuardian(id, updates) {
+  return guardiansApi.updateGuardian(id, updates);
+}
+
+export function deleteGuardian(id) {
+  return guardiansApi.deleteGuardian(id);
+}
+
+export function updateContactEvent(id, updates) {
+  return contactEventsApi.updateContactEvent(id, updates);
+}
+
+export function deleteContactEvent(id) {
+  return contactEventsApi.deleteContactEvent(id);
+}
+
+export function listFollowUps({ status, studentId } = {}) {
+  return followUpsApi.listFollowUps({ status, student_id: studentId });
+}
+
+export function createFollowUp(followUp) {
+  return followUpsApi.createFollowUp(followUp);
+}
+
+export function deleteFollowUp(id) {
+  return followUpsApi.deleteFollowUp(id);
+}
+
+export function updateTeacherNote(id, updates) {
+  return teacherNotesApi.updateTeacherNote(id, updates);
+}
+
+export function deleteTeacherNote(id) {
+  return teacherNotesApi.deleteTeacherNote(id);
 }
