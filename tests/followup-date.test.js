@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { parseFollowUpDate } from '../src/lib/followup-date.js';
 
 test('parseFollowUpDate accepts a calendar date and fixes the follow-up time', () => {
-  assert.equal(parseFollowUpDate('2026-08-27'), '2026-08-27T16:00:00.000Z');
+  assert.equal(parseFollowUpDate('2026-08-27'), new Date(2026, 7, 27, 9, 0, 0, 0).toISOString());
 });
 
 test('parseFollowUpDate rejects malformed and impossible dates', () => {

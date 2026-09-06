@@ -55,3 +55,28 @@ export function contextSavedMessage(aiEnabled) {
     actionLabel: 'Update AI Summary',
   };
 }
+
+export const CONFIGURED_TEACHER_NAME = String(import.meta.env?.VITE_TEACHER_NAME || '').trim();
+
+function initialsFromName(name) {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return 'T';
+  return parts.slice(0, 2).map(part => part[0].toUpperCase()).join('');
+}
+
+function nameFromEmail(email) {
+  const localPart = String(email || '').split('@')[0];
+  const words = localPart.split(/[._\-+]+/).filter(word => /[a-zA-Z]/.test(word));
+  if (!words.length) return '';
+  return words.map(word => word[0].toUpperCase() + word.slice(1).toLowerCase()).join(' ');
+}
+
+export function teacherProfile({ session, appMode = APP_MODE, teacherName = CONFIGURED_TEACHER_NAME } = {}) {
+  const configured = String(teacherName || '').trim();
+  const email = session?.user?.email || '';
+  const name = configured || nameFromEmail(email) || (appMode === 'demo' ? 'Demo Teacher' : 'Teacher');
+  const subtitle = configured
+    ? (appMode === 'demo' ? 'Demo workspace' : 'ContactLoop workspace')
+    : email || (appMode === 'demo' ? 'Demo workspace' : 'Special education');
+  return { name, initials: initialsFromName(name), subtitle };
+}
