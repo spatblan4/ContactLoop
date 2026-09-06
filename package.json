@@ -8,6 +8,7 @@
     "dev:beta": "vite --mode beta",
     "dev:demo": "vite --mode demo",
     "test": "node --test tests/*.test.js",
+    "test:backend": "pytest backend/tests",
     "build": "vite build"
   },
   "devDependencies": {
