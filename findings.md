@@ -103,3 +103,11 @@
 - FastAPI 模型已使用 PostgreSQL `text[]` variant 兼容该列，避免将历史 topics 转为 JSONB 的破坏性 schema 修改。
 - 迁移启用 RLS 并移除业务表上的所有现有 policy，使浏览器不能直连业务表；FastAPI 使用后端数据库连接，现有 Lambda 使用服务端凭据。
 - 迁移暂未连接、执行或应用至 Supabase；应用前必须再次只读核对数据范围并获用户明确批准。
+
+## 2026-09-07 旧 Supabase 只读 Demo 范围核对
+
+- 通过现有匿名只读配置查询，不读取或输出姓名、电话、备注或联系内容。
+- 记录数量：students 4、guardians 4、contact_events 31、follow_ups 4、teacher_notes 6、ai_contact_briefs 5。
+- students 的 4 个 UUID 与仓库固定 Demo seed UUID 一致：1111…、2222…、3333…、4444…。
+- guardians、contact_events、follow_ups、teacher_notes、ai_contact_briefs 的所有 `student_id` 均属于上述 4 个 UUID；未发现另一套学生 ID。
+- 结论：从 ID 范围和数量证据看，当前旧 Supabase 可作为虚构 Demo 数据的兼容迁移候选。该结论不等同于已执行迁移，云端数据尚未改动。

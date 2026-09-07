@@ -83,3 +83,10 @@
 - 处理 `discussed_topics` 类型差异：保持旧 Supabase `text[]`，后端在 PostgreSQL 使用数组 variant。
 - 验证：后端 102/102、前端 132/132、生产构建、SQL 契约和 `git diff --check` 均通过。
 - 云端状态未变；下一步必须先向用户展示迁移审查结论，取得许可后再只读检查旧 Supabase 数据范围。
+
+## 2026-09-07 Supabase Demo 数据只读核对
+
+- 已获用户许可，仅查询业务表数量与 student UUID 引用范围。
+- 4 位 students 和所有关联业务记录均使用仓库 Demo seed 的固定 UUID；数量与预期 Demo 范围一致。
+- 未读取、显示或写入任何学生文本、联系方式、备注或云端数据。
+- 下一步需要用户明确授权后才可执行兼容迁移 SQL；该操作会更改云端 schema 并撤销旧浏览器直连 policy。
