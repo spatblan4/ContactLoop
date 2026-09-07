@@ -54,12 +54,19 @@ def lambda_handler(event, _context):
         return _response(400, {"error": "Invalid request body."})
 
     try:
-        result = OutreachPlan.model_validate(
-            generate_plan(
-                [candidate.model_dump(mode="json") for candidate in request.candidates]
-            )
+        generated_plan = generate_plan(
+            [candidate.model_dump(mode="json") for candidate in request.candidates]
         )
     except Exception:
         return _response(500, {"error": "Unable to generate outreach plan."})
+
+    try:
+        result = OutreachPlan.model_validate(generated_plan)
+    except ValidationError:
+        return _response(502, {"error": "Invalid outreach plan response."})
+
+    candidate_ids = {candidate.student_id for candidate in request.candidates}
+    if any(item.student_id not in candidate_ids for item in result.items):
+        return _response(502, {"error": "Invalid outreach plan response."})
 
     return _response(200, result.model_dump(mode="json"))

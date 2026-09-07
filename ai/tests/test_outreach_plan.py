@@ -75,6 +75,73 @@ def test_handler_returns_structured_plan(monkeypatch):
     assert json.loads(response["body"])["items"][0]["priority"] == "high"
 
 
+def test_handler_rejects_plan_item_for_unknown_candidate(monkeypatch):
+    monkeypatch.setenv("OUTREACH_PLAN_SERVICE_TOKEN", "test-token")
+    monkeypatch.setattr(
+        "ai.outreach_plan.handler.generate_plan",
+        lambda candidates: {
+            "items": [
+                {
+                    "student_id": "97b841a2-a208-4c43-9aec-49e7ef6c41d7",
+                    "priority": "high",
+                    "reason": "Open follow-up is due.",
+                    "suggested_next_step": "Call today.",
+                }
+            ]
+        },
+    )
+
+    response = lambda_handler(valid_event(), None)
+
+    assert response["statusCode"] == 502
+    assert json.loads(response["body"]) == {"error": "Invalid outreach plan response."}
+
+
+def test_handler_rejects_plan_item_with_invalid_priority(monkeypatch):
+    monkeypatch.setenv("OUTREACH_PLAN_SERVICE_TOKEN", "test-token")
+    monkeypatch.setattr(
+        "ai.outreach_plan.handler.generate_plan",
+        lambda candidates: {
+            "items": [
+                {
+                    "student_id": candidates[0]["student_id"],
+                    "priority": "urgent",
+                    "reason": "Open follow-up is due.",
+                    "suggested_next_step": "Call today.",
+                }
+            ]
+        },
+    )
+
+    response = lambda_handler(valid_event(), None)
+
+    assert response["statusCode"] == 502
+    assert json.loads(response["body"]) == {"error": "Invalid outreach plan response."}
+
+
+def test_handler_rejects_plan_item_with_extra_field(monkeypatch):
+    monkeypatch.setenv("OUTREACH_PLAN_SERVICE_TOKEN", "test-token")
+    monkeypatch.setattr(
+        "ai.outreach_plan.handler.generate_plan",
+        lambda candidates: {
+            "items": [
+                {
+                    "student_id": candidates[0]["student_id"],
+                    "priority": "high",
+                    "reason": "Open follow-up is due.",
+                    "suggested_next_step": "Call today.",
+                    "phone_number": "555-0100",
+                }
+            ]
+        },
+    )
+
+    response = lambda_handler(valid_event(), None)
+
+    assert response["statusCode"] == 502
+    assert json.loads(response["body"]) == {"error": "Invalid outreach plan response."}
+
+
 def test_handler_returns_no_cors_headers_for_server_to_server_calls(monkeypatch):
     monkeypatch.setenv("OUTREACH_PLAN_SERVICE_TOKEN", "test-token")
     monkeypatch.setattr("ai.outreach_plan.handler.generate_plan", lambda candidates: {"items": []})
