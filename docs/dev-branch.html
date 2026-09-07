@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ContactLoop dev 分支重构说明</title>
+<style>
+  :root { --ink:#1d2821; --muted:#6b7a6e; --paper:#f4f6f1; --card:#ffffff; --line:#e0e5dd; --coral:#ef684f; --green:#488d61; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink); font:15px/1.7 "DM Sans","Segoe UI","Microsoft YaHei",sans-serif; -webkit-font-smoothing:antialiased; }
+  .page { max-width:960px; margin:0 auto; padding:48px 28px 80px; }
+  header.doc { border-bottom:1px solid var(--line); padding-bottom:22px; margin-bottom:34px; }
+  .brand { display:flex; align-items:center; gap:10px; }
+  .brand-mark { width:34px; height:34px; border-radius:10px; background:var(--coral); color:#fff; display:grid; place-items:center; font-weight:800; font-size:18px; }
+  .brand-name { font-weight:800; letter-spacing:-.02em; font-size:19px; }
+  .brand-name span { color:var(--coral); }
+  h1 { font-size:30px; letter-spacing:-.02em; margin:18px 0 6px; }
+  .sub { color:var(--muted); font-size:13.5px; }
+  h2 { font-size:20px; margin:38px 0 12px; letter-spacing:-.01em; display:flex; align-items:center; gap:10px; }
+  h2::before { content:""; width:5px; height:20px; border-radius:3px; background:var(--coral); flex:none; }
+  h3 { font-size:15.5px; margin:22px 0 8px; }
+  p { margin:8px 0; }
+  code { font:12.5px/1.5 "Cascadia Code",Consolas,monospace; background:#eef1ea; border:1px solid var(--line); border-radius:5px; padding:1px 6px; }
+  pre { background:#1d2821; color:#e7ede6; border-radius:12px; padding:16px 18px; overflow:auto; font:12.5px/1.65 "Cascadia Code",Consolas,monospace; }
+  pre code { background:transparent; border:0; color:inherit; padding:0; }
+  table { width:100%; border-collapse:collapse; background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; margin:12px 0; font-size:13.5px; }
+  th { text-align:left; background:#eef1ea; padding:9px 14px; font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+  td { padding:9px 14px; border-top:1px solid var(--line); vertical-align:top; }
+  ul, ol { margin:8px 0 8px 22px; padding:0; }
+  li { margin:4px 0; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px 22px; margin:14px 0; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .tag { display:inline-block; font-size:11px; font-weight:700; border-radius:999px; padding:2px 10px; margin-left:8px; vertical-align:2px; }
+  .tag.ok { background:#e3efe7; color:var(--green); }
+  .tag.new { background:#fdeae5; color:var(--coral); }
+  .muted { color:var(--muted); }
+  .tree { font-family:Consolas,monospace; font-size:12.5px; white-space:pre; }
+  footer { margin-top:56px; padding-top:16px; border-top:1px solid var(--line); color:var(--muted); font-size:12px; }
+  @media (max-width:720px){ .grid2{grid-template-columns:1fr} h1{font-size:24px} }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header class="doc">
+  <div class="brand"><div class="brand-mark">C</div><div class="brand-name">Contact<span>Loop</span></div></div>
+  <h1>dev 分支重构说明</h1>
+  <p class="sub">分支：<code>dev</code> · 基线：<code>e6fdea0</code> · 生成日期：2026-09-07 · 规范文档：<code>docs/REFACTOR_SPEC.md</code></p>
+</header>
+
+<h2>1. 概述</h2>
+<p><code>dev</code> 分支汇聚了由 5 个并行 worktree 完成的全栈重构，并叠加了登录认证与部署支持：</p>
+<ul>
+  <li><b>后端从零重建</b>为 Python FastAPI 应用（<code>backend/</code>），保留 Supabase Postgres 为首选数据库，未配置连接时<b>自动回退本地 SQLite</b>。</li>
+  <li><b>实体规范化</b>：6 个业务实体全部增加审计字段（<code>created_at / updated_at / created_by / updated_by</code>）与<b>软删除</b>（<code>deleted_at</code>），新增 <code>users</code>、<code>auth_tokens</code> 两个认证实体。</li>
+  <li><b>DAO 层规范化</b>：统一仓储接口（BaseDAO），所有查询自动过滤已删除行。</li>
+  <li><b>完整 CRUD</b>：所有实体补齐缺失/不完整的前后端 CRUD。</li>
+  <li><b>本地账号登录</b>：注册 / 登录 / 会话 / 登出，数据按用户隔离。</li>
+  <li><b>Docker 化部署</b>：Dockerfile ×2 + docker-compose。</li>
+</ul>
+
+<h2>2. 分支拓扑</h2>
+<pre><code>main ── e520d1f docs: refactor specification (共享规范，所有 worktree 的契约)
+  ├─ 369d158 refactor(backend): core models and DAO layer with audit + soft delete
+  ├─ af0c071 refactor(frontend): fetch-based API client behind supabase facade
+  ├─ d2bb8bf refactor(ui): complete CRUD surfaces and UI normalization
+  ├─ 31f1ea1 refactor(backend): FastAPI CRUD routes and schemas
+  └─ 5e33c03 test: complete backend pytest and frontend API test suites
+dev  = main + 以上全部合并 + d524682 (Docker 部署) + e6fdea0 (本地账号认证)</code></pre>
+
+<h2>3. 后端架构（backend/）</h2>
+<div class="tree">backend/
+├── app/
+│   ├── main.py            # 应用工厂、CORS、异常映射（404/409/401）、init_db
+│   ├── core/              # config(pydantic-settings) / database(双模式) / security / types
+│   ├── models/            # 8 个实体（见下表）
+│   ├── dao/               # BaseDAO + 每实体 DAO（审计盖章、软删过滤、owner 作用域）
+│   ├── schemas/           # pydantic v2 请求/响应模型
+│   └── api/v1/            # REST 路由（students…voice、auth）
+├── scripts/               # dao_smoke.py / api_smoke.py 自检脚本
+├── tests/                 # pytest 套件（90 个用例）
+└── data/                  # SQLite 数据库与语音文件（gitignored）</div>
+
+<h3>数据源选择</h3>
+<table>
+  <tr><th>优先级</th><th>环境变量</th><th>说明</th></tr>
+  <tr><td>1</td><td><code>SUPABASE_DB_URL</code></td><td>Supabase Postgres DSN（psycopg 驱动）</td></tr>
+  <tr><td>2</td><td><code>DATABASE_URL</code></td><td>通用 Postgres 覆盖</td></tr>
+  <tr><td>3</td><td>（未配置时）</td><td>SQLite：<code>SQLITE_PATH</code>，默认 <code>backend/data/contactloop.db</code></td></tr>
+</table>
+<p class="muted">UUID / JSON 采用可移植 TypeDecorator，同一套模型在两种方言下工作；当前模式可通过 <code>GET /api/v1/meta</code> 查询。</p>
+
+<h3>实体与规范</h3>
+<table>
+  <tr><th>实体</th><th>要点</th></tr>
+  <tr><td>students</td><td><code>owner_id</code> 关联账号；软删级联至全部子表</td></tr>
+  <tr><td>guardians</td><td>标准 CRUD；每学生多监护人</td></tr>
+  <tr><td>contact_events</td><td><code>attempt_number</code> 服务端计算；触发跟进同步规则</td></tr>
+  <tr><td>follow_ups</td><td>新增 <code>completed_at</code>；(学生, 监护人) 唯一开放跟进约束</td></tr>
+  <tr><td>teacher_notes</td><td>typed / voice 两种来源</td></tr>
+  <tr><td>ai_contact_briefs</td><td>draft / approved / superseded 状态机 + approve / supersede 动作</td></tr>
+  <tr><td>users <span class="tag new">新增</span></td><td>email 唯一；PBKDF2-SHA256 密码哈希</td></tr>
+  <tr><td>auth_tokens <span class="tag new">新增</span></td><td>仅存 token 的 SHA-256 哈希；30 天有效期；可吊销</td></tr>
+</table>
+<p>所有实体统一由 <b>AuditMixin</b> 提供审计五字段；<b>DELETE 一律软删除</b>，所有查询默认排除 <code>deleted_at IS NOT NULL</code>。</p>
+
+<h3>业务规则（原 Postgres 触发器逻辑服务端化）</h3>
+<ul>
+  <li>联系结果为 <b>Connected</b> 且已结束 → 自动完成该（学生 × 监护人）的开放跟进并记录 <code>completed_at</code>；</li>
+  <li><b>No Answer / Busy / Failed</b> → 自动 upsert 开放跟进，到期时间 = 结束时间 + 1 天（可由调用方覆盖）；</li>
+  <li>同一（学生 × 监护人）同时只允许一条开放跟进，冲突返回 409。</li>
+</ul>
+
+<h3>认证与数据隔离</h3>
+<ul>
+  <li>接口：<code>POST /api/v1/auth/register</code> · <code>POST /auth/login</code> · <code>GET /auth/me</code> · <code>POST /auth/logout</code>；</li>
+  <li>令牌：Bearer token，<code>Authorization: Bearer &lt;token&gt;</code>；兼容 Supabase JWT（配置 <code>SUPABASE_JWT_SECRET</code> 时优先验签）与 <code>X-User-Id</code>；</li>
+  <li>隔离：登录用户的全部列表查询与聚合（含 <code>/data/load</code>、<code>/dashboard/summary</code>）按 <code>students.owner_id</code> 过滤，写操作自动记录 <code>created_by / updated_by</code>；匿名访问不受限。</li>
+</ul>
+
+<h2>4. 前端（src/）</h2>
+<ul>
+  <li><code>src/lib/api/</code>：fetch 客户端（<code>VITE_API_BASE_URL</code>，支持 <code>same-origin</code> 相对模式）+ 每实体 API 模块 + 认证模块；</li>
+  <li><code>src/lib/supabase.js</code>：兼容门面 —— 保留原有全部导出名，底层改走 FastAPI；新增 guardians / events / follow-ups / notes 全量 CRUD 导出；</li>
+  <li><code>src/lib/auth.js</code>：未配置 Supabase 时自动走后端登录，返回结构保持兼容；</li>
+  <li>UI：学生详情内监护人增删改、教师笔记编辑/删除、跟进 dismiss/删除、联系记录删除；移除硬编码 profile；侧边栏 Sign out；首页锚点平滑滚动 + 高亮；</li>
+  <li>模式：<code>VITE_APP_MODE=authenticated</code>（登录后按用户隔离数据）或 <code>demo</code>（免登录演示）。</li>
+</ul>
+
+<h2>5. 运行与部署</h2>
+<div class="grid2">
+<div class="card">
+  <h3>本地开发（SQLite）</h3>
+<pre><code># 后端
+cd backend
+python -m venv .venv
+.venv\Scripts\pip install -r requirements.txt
+.venv\Scripts\python -m uvicorn app.main:app --port 8000
+
+# 前端（仓库根目录，.env.local 已配置）
+npm install
+npm run dev   # http://localhost:5173</code></pre>
+</div>
+<div class="card">
+  <h3>Docker</h3>
+<pre><code>docker compose up --build
+# 前端: http://localhost:8080
+# 后端: SQLite 持久卷 contactloop-data
+# 切换 Supabase: 取消 docker-compose.yml
+#   中 SUPABASE_DB_URL 注释即可</code></pre>
+</div>
+</div>
+
+<h2>6. 测试</h2>
+<table>
+  <tr><th>套件</th><th>命令</th><th>覆盖</th><th>状态</th></tr>
+  <tr><td>后端 pytest</td><td><code>npm run test:backend</code></td><td>90 用例：全实体 CRUD、审计盖章、软删级联、跟进同步、尝试计数、导入幂等、认证（注册/登录/登出/隔离）、错误码</td><td class="tag ok">全绿</td></tr>
+  <tr><td>前端 node --test</td><td><code>npm test</code></td><td>123 用例：API 客户端、门面 CRUD、认证模块（mock fetch）、既有视图逻辑</td><td class="tag ok">全绿</td></tr>
+</table>
+
+<h2>7. 已知边界</h2>
+<ul>
+  <li>AI 摘要生成（<code>POST /ai/contact-brief/generate</code>）在未配置 provider 时返回 501；</li>
+  <li>Twilio 通话与 Supabase Edge 语音转写仍走原有链路；本地 SQLite 模式下语音走后端存根（保存文件、转写返回占位文案）；</li>
+  <li>登录会话无自动续期：token 30 天后需重新登录。</li>
+</ul>
+
+<footer>
+  ContactLoop · dev 分支重构文档 · 详细契约见 <code>docs/REFACTOR_SPEC.md</code> · API 交互文档见运行中后端的 <code>/docs</code>（Swagger UI）
+</footer>
+
+</div>
+</body>
+</html>
