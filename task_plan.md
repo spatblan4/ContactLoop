@@ -28,3 +28,31 @@
 - [completed] 创建 `docs/repair-tracker.html`，记录 meeting brief 打印修复、验证证据和部署状态。
 - [completed] 将追踪页与前端修复部署到已关联的 Vercel 项目。
 - [completed] 验证部署地址可访问，记录 URL 和任何环境限制。
+
+## 2026-09-07：dev + Supabase + 真实 Agent 整合
+
+### 目标
+
+保留 dev 的 FastAPI、REST API、认证与 CRUD 架构，以只含虚构 Demo 数据的 Supabase 作为唯一业务数据源，并让现有 Strands / Bedrock Agent 从同一份数据生成结果。
+
+### 安全边界
+
+- 不修改或合并 `main`。
+- 不 push、merge、删除项目文件、覆盖现有 Lambda 或创建收费云资源。
+- 不在日志、计划或提交中记录任何密钥。
+- 在 schema 与 ID 映射统一前，不把 dev 直接连接到旧 Lambda。
+
+### 阶段
+
+- [completed] 阶段 A：确认实际分支、worktree、运行服务来源和本地配置边界
+- [completed] 阶段 B：只读比较 FastAPI 模型、仓库 SQL 与旧 Supabase 实际字段
+- [completed] 阶段 C：设计兼容迁移与安全认证边界，并完成 FastAPI owner 权限修复
+- [in_progress] 阶段 C2：编写并审查 Supabase 增量兼容迁移
+- [pending] 阶段 D：经确认后配置 dev 后端连接 Supabase 并建立虚构 Demo 数据
+- [pending] 阶段 E：验证登录 → 学生 → 联系记录 → 真实 Agent 建议
+- [pending] 阶段 F：整理验证证据；是否合并回 main 由用户另行决定
+
+### 当前阻塞条件
+
+- dev 当前没有本地 `.env`，也没有 `SUPABASE_DB_URL`；切换 FastAPI 到 Supabase 需要数据库连接串。
+- 旧 Supabase schema 与 FastAPI 模型不兼容，不能只改连接字符串：需要先建立迁移方案并确认目标项目。

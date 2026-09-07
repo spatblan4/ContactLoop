@@ -68,3 +68,29 @@
 - The tracker should remain dependency-free and must not read or mutate source files automatically; related files are recorded as plain text.
 - Vercel project linkage exists in `.vercel/project.json` for `contactloop-beta`; deployment requires the locally authenticated Vercel CLI.
 - Production deployment `dpl_GiHwY2tcsnmQH3X4ZE2THKRwvE6o` reached READY; `/docs/repair-tracker.html` is served through a rewrite to the public copy.
+
+## 2026-09-07 dev / Supabase 兼容性审计
+
+- 当前用户打开的项目根目录是 `main`，且包含未提交改动；未对其进行写入、切换或合并。
+- 独立 `dev` worktree 位于 `/private/tmp/contactloop-dev-worktree-20260906`，工作区干净，`dev` 比 `origin/dev` 超前 11 个本地提交。
+- 端口 5173 与 8000 的进程 cwd 均指向该 dev worktree（后端 cwd 为其 `backend/`），因此当前运行服务确实来自 dev。
+- dev 后端配置优先级为 `SUPABASE_DB_URL` → `DATABASE_URL` → SQLite；当前 dev 仅有 `.env.example`，没有实际 `.env`，所以当前运行后端使用 SQLite fallback。
+- FastAPI SQLAlchemy 模型包含统一审计/软删除字段：`updated_at`、`created_by`、`updated_by`、`deleted_at`；旧 Supabase 多数业务表缺少这些字段。
+- 学生归属字段存在直接冲突：FastAPI 使用 `students.owner_id`，旧 Supabase auth patch 使用 `students.teacher_id`；旧 Supabase 实际上两者都没有。
+- 旧 Supabase 实际字段通过匿名 key 的零行 REST 查询核对，未读取或输出任何学生记录。
+- `students` 缺少：`first_name`、`last_name`、`teacher_id`、`owner_id` 和 FastAPI 审计字段。
+- `guardians` 缺少：`email`、`preferred_contact_method` 和 FastAPI 审计字段。
+- `contact_events` 已有 topic、Twilio、follow-up 等现有 Agent 所需字段，但缺少 FastAPI 的软删除/审计字段。
+- `follow_ups` 缺少 `completed_at` 和 FastAPI 软删除/审计字段。
+- `teacher_notes` 与 `ai_contact_briefs` 也缺少部分 FastAPI 审计字段。
+- 后端使用 `Base.metadata.create_all()`，它只能创建缺失表，不能为既有表补列；因此仅设置 Supabase DSN 后启动会遇到 schema 不匹配。
+- 现有 Contact Brief Agent 读取 `contact_events`、`teacher_notes`、`follow_ups`，并调用 `get_contact_stats` RPC；这些主要读取契约与旧 Supabase 结构大体兼容，但学生 ID 必须与 FastAPI 使用的同一套数据一致。
+- 只读 OpenAPI schema 请求返回 401，但表的零行查询返回 200；采用逐列零行查询完成了兼容性核对。
+- 一次 zsh 列拆分写法错误导致首轮逐列结果无效；已改用 zsh `${(s:,:)cols}` 数组拆分完成有效复核。
+- dev 的 `/auth/register`、`/auth/login` 使用 FastAPI 自己的 `users` 与 `auth_tokens` 表，不是 Supabase Auth；若迁移到 Supabase Postgres，这两张表也会位于同一数据库中。
+- `get_current_user_id` 是“尽力解析”，匿名请求会得到 `None` 而不是被拒绝；students 列表在匿名时不会按 owner 过滤。
+- students 的详情、更新和删除端点按当前源码没有验证该 student 是否属于当前用户。其他资源仍需逐端点完成同类授权审计，不能把“有登录”直接等同于“所有 CRUD 已租户隔离”。
+- dev 中有两类不同 AI：现有 Contact Brief Agent 针对单个 student，从 Supabase 读取并生成摘要；新 Outreach Plan Agent 针对整个已授权候选列表，回答“谁该联系/为什么/下一步”。
+- FastAPI 的 Contact Brief 生成端点当前明确返回 501；前端旧路径仍可直接调用配置的 AWS Contact Brief endpoint。
+- FastAPI 的 Outreach Plan 端点需要 `OUTREACH_PLAN_ENDPOINT` 与服务 token，仓库包含一个新的 Strands/Bedrock Lambda handler，但它不是现有 `contactloop-contact-brief` Lambda 的相同请求/响应协议。
+- 因此，在“不覆盖现有 Lambda、也不贸然新建 Lambda”的边界下，不能假设现有 Contact Brief Lambda 能直接充当 Outreach Plan Agent。可选方向需要用户确认：本地运行新 Outreach Agent用于现场 demo，或仅接入现有 Contact Brief 并把全班优先级作为后续功能。

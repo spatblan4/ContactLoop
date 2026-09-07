@@ -51,3 +51,27 @@
 - Verified HTTP 200 for `/`, `/repair-tracker.html`, and `/docs/repair-tracker.html` (Vercel rewrite).
 - Demo deployment also reached READY at `https://contactloop-demo.vercel.app`; verified HTTP 200 for the demo root and `/docs/repair-tracker.html`.
 - Resolved demo `Invalid API key`: the prior deployment had a malformed build-time anon key; redeployed from `.env.demo.local`, and the real `students` REST query now returns HTTP 200.
+
+## 2026-09-07 dev + Supabase + Agent 整合
+
+- 确认主工作目录实际位于 `main` 且有用户未提交改动；未修改、切换或合并该分支。
+- 确认真正的 `dev` 在独立临时 worktree，且当前 5173/8000 服务均从该 worktree 启动。
+- 检查 dev 后端配置、SQLAlchemy 模型、仓库 Supabase SQL 和 Contact Brief Agent 的读取契约。
+- 使用现有本地匿名配置执行零行只读 REST 查询，仅核对字段存在性，没有输出密钥或学生记录。
+- 完成兼容性结论：旧 Supabase 与 FastAPI 模型不是即插即用；必须先处理 owner 字段、审计/软删除字段、认证用户映射和迁移方式。
+- 遇到的错误：受限环境内 `ps` 返回 operation not permitted；改用 `lsof` 的 cwd 信息确认服务来源。
+- 遇到的错误：Supabase OpenAPI 元数据请求返回 401；改用逐字段 `limit=0` 请求核对 schema。
+- 遇到的错误：首轮 zsh 字段分隔未生效；修正为显式 zsh 数组拆分后完成复核。
+- 下一步：先产出不破坏旧 Agent 读取契约的兼容迁移设计，再请求/配置数据库 DSN；尚未改动数据库、运行配置或云资源。
+- 完成认证与 AI 路径审计：dev 本地 auth 与 Supabase Auth 是两套机制；发现部分 students 端点尚未强制 owner 校验，需要在声称“权限安全”前修复和测试。
+- 确认现有 Contact Brief Lambda 与新 Outreach Plan Lambda 是两种不同协议；在禁止覆盖/新建 Lambda 的条件下，需要先确认比赛 demo 要展示哪一种真实 Agent 路径。
+
+## 2026-09-07 owner 权限修复
+
+- 固定最终架构：Browser → FastAPI → Supabase Postgres；保留 FastAPI auth，Supabase 本阶段只作为数据库。
+- 新增集中 owner 校验，students 及所有关联资源必须属于当前 bearer token 用户。
+- 所有业务 API 现在要求登录；`X-User-Id` 不再能建立身份或覆盖审计 owner。
+- 匿名访问业务接口返回 401；跨账号资源 ID 统一返回 404。
+- voice upload/transcription 的 student context 也验证 owner；dashboard、import 和 AI 路由强制登录。
+- TDD 证据：新增测试在修复前准确失败；修复后后端 101/101、前端 129/129 通过，Vite build 与 `git diff --check` 通过。
+- 仅保留两项第三方弃用 warning：Starlette TestClient/httpx 与 anyio BlockingPortal；不影响本次权限验收。

@@ -25,6 +25,7 @@
 **Files:**
 - Modify: `backend/tests/conftest.py`
 - Modify: `backend/tests/test_students.py`
+- Modify: `backend/tests/test_actor_headers.py`
 - Create: `backend/app/services/ownership.py`
 - Modify: `backend/app/api/v1/students.py`
 - Modify: `backend/app/api/deps.py`
@@ -36,7 +37,7 @@
 
 - [ ] **Step 1: Add authenticated fixtures and failing student authorization tests**
 
-  Make the existing `client` fixture register one default account and attach its bearer token to `client.headers`. Add an independent `anonymous_client`, expose the default user/headers, and add `second_auth` returning a second user's headers. Add tests proving: anonymous student list/create/get/update/delete return 401; the default user sees their own student; the second user receives 404 for get/update/delete and cannot see it in list results; `X-User-Id` cannot spoof ownership.
+  Make the existing `client` fixture register one default account and attach its bearer token to `client.headers`. Add an independent `anonymous_client`, expose the default user/headers, and add `second_auth` returning a second user's headers. Add tests proving: anonymous student list/create/get/update/delete return 401; the default user sees their own student; the second user receives 404 for get/update/delete and cannot see it in list results; `X-User-Id` cannot spoof ownership. Replace the legacy actor-header tests with assertions that only the authenticated FastAPI token determines identity and audit ownership.
 
 - [ ] **Step 2: Run the focused tests and verify RED**
 
@@ -173,3 +174,12 @@
 - [ ] Re-read `docs/superpowers/specs/2026-09-07-fastapi-supabase-owner-security-design.md` and confirm every API authorization rule is covered.
 - [ ] Record exact test counts and any warnings in `progress.md`.
 - [ ] Do not begin Supabase migration until this authorization plan is green.
+
+## 2026-09-07 execution result
+
+- [x] Task 1 completed: students require FastAPI authentication and enforce `owner_id`.
+- [x] Task 2 completed: guardians, contact events, follow-ups, teacher notes, and AI briefs enforce student ownership.
+- [x] Task 3 completed: dashboard, import, voice, Contact Brief stub, and Outreach Plan routes require authentication; voice student context enforces ownership.
+- [x] Backend verification: 101 tests passed.
+- [x] Frontend verification: 129 tests passed.
+- [x] Production build and `git diff --check` passed.
