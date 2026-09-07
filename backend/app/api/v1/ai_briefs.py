@@ -1,12 +1,17 @@
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user_id, get_db
+from app.api.deps import get_current_user, get_current_user_id, get_db
 from app.core.exceptions import NotFoundError
 from app.dao import AiContactBriefDAO
+from app.models import User
 from app.schemas.ai_brief import AiBriefCreate, AiBriefRead, AiBriefUpdate
+from app.schemas.outreach_plan import OutreachPlanResponse
+from app.services.outreach_plan import build_outreach_candidates
+from app.services.outreach_plan_client import OutreachAgentUnavailable, invoke_outreach_agent
 
 router = APIRouter(prefix="/ai-briefs", tags=["ai-briefs"])
 
@@ -18,6 +23,17 @@ def generate_contact_brief():
     raise HTTPException(
         status_code=501, detail="AI contact brief provider is not configured."
     )
+
+
+@ai_router.post("/outreach-plan/generate", response_model=OutreachPlanResponse)
+def generate_outreach_plan(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    candidates = build_outreach_candidates(db, user.id, datetime.now(timezone.utc))
+    if not candidates:
+        return OutreachPlanResponse(generated_at=datetime.now(timezone.utc), source="agent", items=[])
+    try:
+        return invoke_outreach_agent(candidates)
+    except OutreachAgentUnavailable:
+        raise HTTPException(status_code=503, detail="Outreach Agent is temporarily unavailable. Try again shortly.") from None
 
 
 @router.get("", response_model=list[AiBriefRead] | AiBriefRead)

@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
 
+import httpx
+
 from tests.test_auth import make_user
 
 
@@ -108,3 +110,86 @@ def test_candidate_builder_returns_minimized_latest_confirmed_facts(
     assert candidate["last_contact_at"] == "2026-09-06T10:00:00"
     assert candidate["open_follow_up_due_at"] == "2026-09-06T09:00:00"
     assert candidate["teacher_confirmed_notes"] == ["Confirmed context"]
+
+
+def test_outreach_plan_requires_login(client):
+    response = client.post("/api/v1/ai/outreach-plan/generate")
+
+    assert response.status_code == 401
+
+
+def test_outreach_plan_forwards_only_authorized_candidates(
+    monkeypatch, client, make_user, make_student
+):
+    from tests.test_auth import auth_headers
+
+    teacher = make_user()
+    other_teacher = make_user()
+    headers = auth_headers(teacher["token"])
+    mine = make_student(headers=headers)
+    make_student(headers=auth_headers(other_teacher["token"]))
+    captured = {}
+
+    def fake_agent(candidates):
+        captured["candidates"] = candidates
+        return {
+            "generated_at": "2026-09-06T00:00:00Z",
+            "source": "agent",
+            "items": [],
+        }
+
+    monkeypatch.setattr("app.api.v1.ai_briefs.invoke_outreach_agent", fake_agent)
+
+    response = client.post("/api/v1/ai/outreach-plan/generate", headers=headers)
+
+    assert response.status_code == 200
+    assert [candidate["student_id"] for candidate in captured["candidates"]] == [
+        mine["id"]
+    ]
+    assert set(response.json()) == {"generated_at", "source", "items"}
+
+
+def test_outreach_plan_returns_empty_plan_without_invoking_agent(
+    monkeypatch, client, make_user
+):
+    from tests.test_auth import auth_headers
+
+    def fail_if_called(_candidates):
+        raise AssertionError("agent must not be invoked without candidates")
+
+    monkeypatch.setattr(
+        "app.services.outreach_plan_client.invoke_outreach_agent", fail_if_called
+    )
+
+    response = client.post(
+        "/api/v1/ai/outreach-plan/generate",
+        headers=auth_headers(make_user()["token"]),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["source"] == "agent"
+    assert response.json()["items"] == []
+
+
+def test_outreach_plan_hides_upstream_failure(client, monkeypatch, make_user, make_student):
+    from tests.test_auth import auth_headers
+
+    from app.services.outreach_plan_client import OutreachAgentUnavailable
+
+    def raise_timeout(_candidates):
+        raise OutreachAgentUnavailable()
+
+    monkeypatch.setattr("app.api.v1.ai_briefs.invoke_outreach_agent", raise_timeout)
+    teacher = make_user()
+    headers = auth_headers(teacher["token"])
+    make_student(headers=headers)
+
+    response = client.post(
+        "/api/v1/ai/outreach-plan/generate",
+        headers=headers,
+    )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == (
+        "Outreach Agent is temporarily unavailable. Try again shortly."
+    )

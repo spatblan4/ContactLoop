@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     database_url: str | None = None
     sqlite_path: str = "./data/contactloop.db"
     supabase_jwt_secret: str | None = None
+    outreach_plan_endpoint: str | None = None
+    outreach_plan_service_token: str | None = None
     cors_origins: str = "*"
     app_env: str = "development"
 
