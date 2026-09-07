@@ -98,3 +98,4 @@ ContactLoop is still focused on a simple promise: important family communication
 
 For me, that is the value of an agent for humans. It does real work across tools, but it also knows where its work should stop.
 
+ContactLoop is my submission to the AWS Agents for Humans Hackathon. The [source code is available on GitHub](https://github.com/spatblan4/ContactLoop).

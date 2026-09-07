@@ -56,3 +56,4 @@ When I think about the phrase **Agents for Humans**, this is what it means to me
 
 For teachers, the most important part of a family conversation will always be the human connection. ContactLoop is there to make sure that connection does not get lost in the administrative noise around it.
 
+ContactLoop is my submission to the AWS Agents for Humans Hackathon. The [source code is available on GitHub](https://github.com/spatblan4/ContactLoop).

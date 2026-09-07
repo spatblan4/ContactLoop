@@ -78,3 +78,4 @@ AI is at its best here when it is useful without pretending to be authoritative.
 
 That boundary does not make the agent less capable. It makes the system more honest—and more worthy of the human relationships it is meant to support.
 
+ContactLoop is my submission to the AWS Agents for Humans Hackathon. The [source code is available on GitHub](https://github.com/spatblan4/ContactLoop).
