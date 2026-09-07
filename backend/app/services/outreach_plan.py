@@ -12,6 +12,9 @@ def build_outreach_candidates(
 ) -> list[dict]:
     """Return owner-scoped, minimized facts for outreach prioritization."""
     del now
+    if owner_id is None:
+        return []
+
     students = StudentDAO(db).list(owner_id=owner_id)
     student_ids = {student.id for student in students}
     latest_events = {
@@ -19,11 +22,10 @@ def build_outreach_candidates(
         for event in ContactEventDAO(db).list(owner_id=owner_id)
         if event.student_id in student_ids
     }
-    open_follow_ups = {
-        follow_up.student_id: follow_up
-        for follow_up in FollowUpDAO(db).list(status="open", owner_id=owner_id)
-        if follow_up.student_id in student_ids
-    }
+    open_follow_ups = {}
+    for follow_up in FollowUpDAO(db).list(status="open", owner_id=owner_id):
+        if follow_up.student_id in student_ids:
+            open_follow_ups.setdefault(follow_up.student_id, follow_up)
     confirmed_notes: dict[UUID, list[str]] = {}
     for note in TeacherNoteDAO(db).list(owner_id=owner_id):
         if note.student_id in student_ids and note.teacher_confirmed:
