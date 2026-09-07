@@ -13,7 +13,7 @@ test('submission center includes the complete persistent checklist contract', as
     assert.match(html, new RegExp(`data-check-group="${group}"`));
   }
   assert.match(html, /data-check-id="product-real-call"[^>]*checked/);
-  assert.match(html, /data-check-id="devpost-submit"(?![^>]*checked)/);
+  assert.match(html, /data-check-id="devpost-submit"[^>]*type="checkbox">/);
   assert.match(html, /id="progressPercent"/);
   assert.match(html, /id="progressCount"/);
   assert.match(html, /id="resetProgress"/);
@@ -42,4 +42,17 @@ test('public submission center is identical to the docs source', async () => {
   ]);
 
   assert.equal(publicHtml, html);
+});
+
+test('submission center binds reset without colliding with the button id global', async () => {
+  const html = await readFile(docsPath, 'utf8');
+
+  assert.doesNotMatch(html, /function resetProgress\(/);
+  assert.match(html, /document\.querySelector\('#resetProgress'\)\.addEventListener/);
+});
+
+test('submission center provides an inline favicon for clean offline loading', async () => {
+  const html = await readFile(docsPath, 'utf8');
+
+  assert.match(html, /<link rel="icon" href="data:image\/svg\+xml,/);
 });
