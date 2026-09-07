@@ -157,9 +157,7 @@ def test_outreach_plan_returns_empty_plan_without_invoking_agent(
     def fail_if_called(_candidates):
         raise AssertionError("agent must not be invoked without candidates")
 
-    monkeypatch.setattr(
-        "app.services.outreach_plan_client.invoke_outreach_agent", fail_if_called
-    )
+    monkeypatch.setattr("app.api.v1.ai_briefs.invoke_outreach_agent", fail_if_called)
 
     response = client.post(
         "/api/v1/ai/outreach-plan/generate",
