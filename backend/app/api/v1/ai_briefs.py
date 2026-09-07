@@ -25,14 +25,15 @@ def list_ai_briefs(
     student_id: uuid.UUID | None = None,
     latest: bool = False,
     db: Session = Depends(get_db),
+    user_id: uuid.UUID | None = Depends(get_current_user_id),
 ):
     dao = AiContactBriefDAO(db)
     if latest:
-        brief = dao.list(student_id=student_id, latest=True)
+        brief = dao.list(student_id=student_id, latest=True, owner_id=user_id)
         if brief is None:
             raise NotFoundError("ai_contact_briefs latest not found")
         return brief
-    return dao.list(student_id=student_id)
+    return dao.list(student_id=student_id, owner_id=user_id)
 
 
 @router.post("", response_model=AiBriefRead, status_code=201)

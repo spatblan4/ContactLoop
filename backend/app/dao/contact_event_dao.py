@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 
 from app.dao.base import BaseDAO
 from app.dao.follow_up_dao import FollowUpDAO
-from app.models import ContactEvent
+from app.models import ContactEvent, Student
 
 CONNECTED = "Connected"
 UNSUCCESSFUL_RESULTS = ("No Answer", "Busy", "Failed")
@@ -22,10 +22,19 @@ class ContactEventDAO(BaseDAO):
         date_from: datetime | None = None,
         date_to: datetime | None = None,
         result: str | None = None,
+        owner_id: uuid.UUID | None = None,
     ):
         stmt = self._alive()
         if student_id is not None:
             stmt = stmt.where(ContactEvent.student_id == student_id)
+        if owner_id is not None:
+            stmt = stmt.where(
+                ContactEvent.student_id.in_(
+                    select(Student.id).where(
+                        Student.owner_id == owner_id, Student.deleted_at.is_(None)
+                    )
+                )
+            )
         if date_from is not None:
             stmt = stmt.where(ContactEvent.call_time >= date_from)
         if date_to is not None:

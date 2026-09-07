@@ -14,8 +14,9 @@ router = APIRouter(prefix="/guardians", tags=["guardians"])
 def list_guardians(
     student_id: uuid.UUID | None = None,
     db: Session = Depends(get_db),
+    user_id: uuid.UUID | None = Depends(get_current_user_id),
 ):
-    return GuardianDAO(db).list(student_id=student_id)
+    return GuardianDAO(db).list(student_id=student_id, owner_id=user_id)
 
 
 @router.post("", response_model=GuardianRead, status_code=201)

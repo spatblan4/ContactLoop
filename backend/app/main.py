@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from app.api.v1.router import api_v1_router
 from app.core.config import settings
 from app.core.database import init_db
-from app.core.exceptions import ConflictError, NotFoundError
+from app.core.exceptions import ConflictError, NotFoundError, UnauthorizedError
 
 
 def create_app() -> FastAPI:
@@ -35,6 +35,10 @@ def create_app() -> FastAPI:
     @app.exception_handler(ConflictError)
     async def conflict_handler(_: Request, exc: ConflictError):
         return JSONResponse(status_code=409, content={"detail": exc.message})
+
+    @app.exception_handler(UnauthorizedError)
+    async def unauthorized_handler(_: Request, exc: UnauthorizedError):
+        return JSONResponse(status_code=401, content={"detail": exc.message})
 
     @app.exception_handler(ValueError)
     async def value_error_handler(_: Request, exc: ValueError):

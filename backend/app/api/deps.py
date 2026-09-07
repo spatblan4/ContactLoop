@@ -6,11 +6,14 @@ import json
 import uuid
 from collections.abc import Generator
 
-from fastapi import Header
+from fastapi import Depends, Header
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import SessionLocal
+from app.core.exceptions import UnauthorizedError
+from app.dao import AuthTokenDAO
+from app.models import User
 
 
 def get_db() -> Generator[Session, None, None]:
@@ -41,9 +44,15 @@ def _verify_hs256_jwt(token: str, secret: str) -> dict | None:
         return None
 
 
+def _bearer_token(authorization: str | None) -> str | None:
+    scheme, _, token = (authorization or "").partition(" ")
+    return token if scheme.lower() == "bearer" and token else None
+
+
 def get_current_user_id(
     x_user_id: str | None = Header(default=None),
     authorization: str | None = Header(default=None),
+    db: Session = Depends(get_db),
 ) -> uuid.UUID | None:
     """Best-effort actor resolution; never blocks anonymous requests."""
     if x_user_id:
@@ -51,13 +60,27 @@ def get_current_user_id(
             return uuid.UUID(x_user_id)
         except ValueError:
             pass
-    if authorization:
-        scheme, _, token = authorization.partition(" ")
-        if scheme.lower() == "bearer" and token and settings.supabase_jwt_secret:
+    token = _bearer_token(authorization)
+    if token:
+        if settings.supabase_jwt_secret:
             claims = _verify_hs256_jwt(token, settings.supabase_jwt_secret)
             if claims and claims.get("sub"):
                 try:
                     return uuid.UUID(str(claims["sub"]))
                 except ValueError:
-                    return None
+                    pass
+        user = AuthTokenDAO(db).resolve(token)
+        if user is not None:
+            return user.id
     return None
+
+
+def get_current_user(
+    authorization: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+) -> User:
+    token = _bearer_token(authorization)
+    user = AuthTokenDAO(db).resolve(token) if token else None
+    if user is None:
+        raise UnauthorizedError("a valid bearer token is required")
+    return user

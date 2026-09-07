@@ -16,8 +16,9 @@ def list_follow_ups(
     status: str | None = None,
     student_id: uuid.UUID | None = None,
     db: Session = Depends(get_db),
+    user_id: uuid.UUID | None = Depends(get_current_user_id),
 ):
-    return FollowUpDAO(db).list(status=status, student_id=student_id)
+    return FollowUpDAO(db).list(status=status, student_id=student_id, owner_id=user_id)
 
 
 @router.post("", response_model=FollowUpRead, status_code=201)

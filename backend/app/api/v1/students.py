@@ -14,8 +14,9 @@ router = APIRouter(prefix="/students", tags=["students"])
 def list_students(
     search: str | None = Query(default=None),
     db: Session = Depends(get_db),
+    user_id: uuid.UUID | None = Depends(get_current_user_id),
 ):
-    return StudentDAO(db).list(search=search)
+    return StudentDAO(db).list(search=search, owner_id=user_id)
 
 
 @router.post("", response_model=StudentRead, status_code=201)

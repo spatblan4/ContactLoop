@@ -1,10 +1,11 @@
 import uuid
 
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from app.core.exceptions import ConflictError
 from app.dao.base import BaseDAO
-from app.models import AiContactBrief
+from app.models import AiContactBrief, Student
 
 AI_BRIEF_STATUSES = ("draft", "approved", "superseded")
 
@@ -12,10 +13,23 @@ AI_BRIEF_STATUSES = ("draft", "approved", "superseded")
 class AiContactBriefDAO(BaseDAO):
     model = AiContactBrief
 
-    def list(self, student_id: uuid.UUID | None = None, latest: bool = False):
+    def list(
+        self,
+        student_id: uuid.UUID | None = None,
+        latest: bool = False,
+        owner_id: uuid.UUID | None = None,
+    ):
         stmt = self._alive()
         if student_id is not None:
             stmt = stmt.where(AiContactBrief.student_id == student_id)
+        if owner_id is not None:
+            stmt = stmt.where(
+                AiContactBrief.student_id.in_(
+                    select(Student.id).where(
+                        Student.owner_id == owner_id, Student.deleted_at.is_(None)
+                    )
+                )
+            )
         stmt = stmt.order_by(
             AiContactBrief.date_to.desc(),
             AiContactBrief.version.desc(),

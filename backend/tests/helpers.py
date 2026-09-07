@@ -2,7 +2,17 @@ import base64
 import hashlib
 import hmac
 import json
+import secrets
+import uuid
 from datetime import datetime
+
+
+def make_email():
+    return f"teacher-{uuid.uuid4().hex[:10]}@example.com"
+
+
+def make_password():
+    return f"Pass-{secrets.token_hex(6)}-1"
 
 
 def parse_dt(value):

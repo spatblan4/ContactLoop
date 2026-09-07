@@ -1,3 +1,5 @@
+import { getStoredToken } from './auth-token.js';
+
 let apiBaseUrlOverride = null;
 
 function normalizeBaseUrl(value) {
@@ -97,6 +99,8 @@ export async function apiFetch(path, { method = 'GET', body, query, fetchImpl, s
     throw new ApiError('Fetch is not available in this environment.', { status: null, url, method });
   }
   const init = { method, headers: {} };
+  const token = getStoredToken();
+  if (token) init.headers.Authorization = `Bearer ${token}`;
   if (body !== undefined) {
     init.headers['Content-Type'] = 'application/json';
     init.body = JSON.stringify(body);

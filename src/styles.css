@@ -2,6 +2,15 @@
 
 :root { --paper:#f7f7f2; --ink:#18221d; --muted:#778078; --line:#dde2da; --card:#fffefa; --coral:#ef684f; --coral-dark:#cf4c37; --mint:#dcefe4; --mint-ink:#176240; --amber:#fff0c9; --amber-ink:#87601c; --blue:#e2eef4; --blue-ink:#285c72; --shadow:0 18px 50px rgba(28,40,31,.07); }
 * { box-sizing:border-box; }
+html { scroll-behavior: smooth; }
+.home-page #how-it-works, .home-page #privacy { scroll-margin-top: 96px; }
+.home-page .home-proof { padding-top: 88px; padding-bottom: 88px; }
+.home-page .privacy-strip { padding-top: 64px; padding-bottom: 64px; }
+.home-page #how-it-works:target, .home-page #privacy:target { animation: target-flash 1.6s ease 1; }
+@keyframes target-flash { 0%, 40% { background:#f2f7ef; box-shadow: 0 0 0 3px rgba(72,141,97,.25); } 100% { background:transparent; box-shadow: 0 0 0 0 transparent; } }
+.sidebar-signout { margin-top: 14px; border: 1px solid var(--line); border-radius: 8px; background: transparent; padding: 8px 12px; font-size: 11px; font-weight: 700; color: var(--muted); cursor: pointer; }
+.sidebar-signout:hover { color: var(--coral-dark); border-color: var(--coral); }
+
 body { margin:0; color:var(--ink); background:var(--paper); font-family:'DM Sans',sans-serif; -webkit-font-smoothing:antialiased; }
 button, input { font:inherit; }
 button { cursor:pointer; }

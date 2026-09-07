@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.api.v1 import (
     ai_briefs,
+    auth,
     contact_events,
     dashboard,
     follow_ups,
@@ -27,6 +28,7 @@ def meta():
     return {"database": database_mode(), "app_env": settings.app_env}
 
 
+api_v1_router.include_router(auth.router)
 api_v1_router.include_router(students.router)
 api_v1_router.include_router(guardians.router)
 api_v1_router.include_router(contact_events.router)

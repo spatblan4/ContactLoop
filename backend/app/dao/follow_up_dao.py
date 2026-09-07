@@ -1,10 +1,11 @@
 import uuid
 
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from app.core.exceptions import ConflictError
 from app.dao.base import BaseDAO
-from app.models import FollowUp
+from app.models import FollowUp, Student
 
 FOLLOW_UP_STATUSES = ("open", "completed", "dismissed")
 
@@ -16,12 +17,21 @@ class FollowUpDAO(BaseDAO):
         self,
         status: str | None = None,
         student_id: uuid.UUID | None = None,
+        owner_id: uuid.UUID | None = None,
     ):
         stmt = self._alive()
         if status is not None:
             stmt = stmt.where(FollowUp.status == status)
         if student_id is not None:
             stmt = stmt.where(FollowUp.student_id == student_id)
+        if owner_id is not None:
+            stmt = stmt.where(
+                FollowUp.student_id.in_(
+                    select(Student.id).where(
+                        Student.owner_id == owner_id, Student.deleted_at.is_(None)
+                    )
+                )
+            )
         return self.db.scalars(stmt.order_by(FollowUp.due_at)).all()
 
     def get_open(self, student_id, guardian_id: uuid.UUID | None):

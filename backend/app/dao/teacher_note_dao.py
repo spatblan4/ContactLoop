@@ -1,7 +1,9 @@
 import uuid
 
+from sqlalchemy import select
+
 from app.dao.base import BaseDAO
-from app.models import TeacherNote
+from app.models import Student, TeacherNote
 
 TEACHER_NOTE_SOURCES = ("typed", "voice")
 
@@ -9,10 +11,22 @@ TEACHER_NOTE_SOURCES = ("typed", "voice")
 class TeacherNoteDAO(BaseDAO):
     model = TeacherNote
 
-    def list(self, student_id: uuid.UUID | None = None):
+    def list(
+        self,
+        student_id: uuid.UUID | None = None,
+        owner_id: uuid.UUID | None = None,
+    ):
         stmt = self._alive()
         if student_id is not None:
             stmt = stmt.where(TeacherNote.student_id == student_id)
+        if owner_id is not None:
+            stmt = stmt.where(
+                TeacherNote.student_id.in_(
+                    select(Student.id).where(
+                        Student.owner_id == owner_id, Student.deleted_at.is_(None)
+                    )
+                )
+            )
         return self.db.scalars(stmt.order_by(TeacherNote.created_at)).all()
 
     def create(self, data, actor_id: uuid.UUID | None = None):

@@ -22,9 +22,10 @@ def list_contact_events(
     to: datetime | None = None,
     result: str | None = None,
     db: Session = Depends(get_db),
+    user_id: uuid.UUID | None = Depends(get_current_user_id),
 ):
     return ContactEventDAO(db).list(
-        student_id=student_id, date_from=from_, date_to=to, result=result
+        student_id=student_id, date_from=from_, date_to=to, result=result, owner_id=user_id
     )
 
 
