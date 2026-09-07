@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.git/
+.kilo/
+.env*
+backend/
+supabase/
+tests/
+ai/
+docs/
+*.md
+.vercel
+.playwright-cli/

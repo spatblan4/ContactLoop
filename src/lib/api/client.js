@@ -4,17 +4,30 @@ function normalizeBaseUrl(value) {
   return String(value ?? '').trim().replace(/\/+$/, '');
 }
 
+const SAME_ORIGIN = 'same-origin';
+
+function isSameOrigin(value) {
+  return String(value ?? '').trim().toLowerCase() === SAME_ORIGIN;
+}
+
+function configuredBaseUrl() {
+  return apiBaseUrlOverride ?? import.meta.env?.VITE_API_BASE_URL;
+}
+
 export function setApiBaseUrl(url) {
   apiBaseUrlOverride = url === null || url === undefined ? null : normalizeBaseUrl(url);
 }
 
 export function getApiBaseUrl() {
-  const configured = apiBaseUrlOverride ?? import.meta.env?.VITE_API_BASE_URL;
+  const configured = configuredBaseUrl();
+  if (isSameOrigin(configured)) return '';
   return normalizeBaseUrl(configured);
 }
 
 export function hasBackendConfig() {
-  return Boolean(getApiBaseUrl());
+  const configured = configuredBaseUrl();
+  if (isSameOrigin(configured)) return true;
+  return Boolean(normalizeBaseUrl(configured));
 }
 
 export const API_PREFIX = '/api/v1';
@@ -61,10 +74,10 @@ function detailToMessage(detail, status) {
 }
 
 function buildUrl(path, query) {
-  const base = getApiBaseUrl();
-  if (!base) {
+  if (!hasBackendConfig()) {
     throw new ApiError('API base URL is not configured. Set VITE_API_BASE_URL.', { status: null, detail: 'VITE_API_BASE_URL is not set' });
   }
+  const base = getApiBaseUrl();
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   const params = new URLSearchParams();
   if (query) {

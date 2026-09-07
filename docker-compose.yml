@@ -1,0 +1,30 @@
+services:
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      # Default: local SQLite inside the named volume.
+      # To use Supabase Postgres instead, set SUPABASE_DB_URL (project settings
+      # -> Database -> Connection string, psycopg driver) and remove SQLITE_PATH.
+      - SQLITE_PATH=/data/contactloop.db
+      - CORS_ORIGINS=http://localhost:8080
+      # - SUPABASE_DB_URL=postgresql+psycopg://postgres:[PASSWORD]@db.[REF].supabase.co:5432/postgres
+    volumes:
+      - contactloop-data:/data
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # `same-origin` makes the browser call /api on the nginx proxy below.
+        - VITE_API_BASE_URL=same-origin
+        - VITE_APP_MODE=demo
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+
+volumes:
+  contactloop-data:
