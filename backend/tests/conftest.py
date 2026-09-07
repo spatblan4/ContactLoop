@@ -96,7 +96,7 @@ def make_student(client):
 
 @pytest.fixture
 def make_guardian(client):
-    def _make(student_id, name=None, **extra):
+    def _make(student_id, name=None, headers=None, **extra):
         suffix = uuid.uuid4().hex[:8]
         payload = {
             "student_id": student_id,
@@ -105,7 +105,7 @@ def make_guardian(client):
             "phone": f"555-{suffix}",
         }
         payload.update(extra)
-        response = client.post("/api/v1/guardians", json=payload)
+        response = client.post("/api/v1/guardians", json=payload, headers=headers)
         assert response.status_code == 201, response.text
         return response.json()
 
@@ -140,14 +140,14 @@ def make_event(client):
 
 @pytest.fixture
 def make_follow_up(client):
-    def _make(student_id, guardian_id=None, due_at="2028-03-01T09:00:00Z", **extra):
+    def _make(student_id, guardian_id=None, due_at="2028-03-01T09:00:00Z", headers=None, **extra):
         payload = {
             "student_id": student_id,
             "guardian_id": guardian_id,
             "due_at": due_at,
         }
         payload.update(extra)
-        response = client.post("/api/v1/follow-ups", json=payload)
+        response = client.post("/api/v1/follow-ups", json=payload, headers=headers)
         assert response.status_code == 201, response.text
         return response.json()
 
@@ -156,13 +156,13 @@ def make_follow_up(client):
 
 @pytest.fixture
 def make_note(client):
-    def _make(student_id, content=None, **extra):
+    def _make(student_id, content=None, headers=None, **extra):
         payload = {
             "student_id": student_id,
             "content": content or f"Note {uuid.uuid4().hex[:8]}",
         }
         payload.update(extra)
-        response = client.post("/api/v1/teacher-notes", json=payload)
+        response = client.post("/api/v1/teacher-notes", json=payload, headers=headers)
         assert response.status_code == 201, response.text
         return response.json()
 
@@ -171,14 +171,14 @@ def make_note(client):
 
 @pytest.fixture
 def make_brief(client):
-    def _make(student_id, date_from="2028-01-01T00:00:00Z", date_to="2028-01-31T00:00:00Z", **extra):
+    def _make(student_id, date_from="2028-01-01T00:00:00Z", date_to="2028-01-31T00:00:00Z", headers=None, **extra):
         payload = {
             "student_id": student_id,
             "date_from": date_from,
             "date_to": date_to,
         }
         payload.update(extra)
-        response = client.post("/api/v1/ai-briefs", json=payload)
+        response = client.post("/api/v1/ai-briefs", json=payload, headers=headers)
         assert response.status_code == 201, response.text
         return response.json()
 

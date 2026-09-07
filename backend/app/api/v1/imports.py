@@ -3,8 +3,9 @@ import uuid
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user_id, get_db
+from app.api.deps import get_current_user, get_db
 from app.dao import GuardianDAO, StudentDAO
+from app.models import User
 from app.schemas.import_students import ImportStudentsRequest, ImportStudentsResponse
 
 router = APIRouter(prefix="/import", tags=["import"])
@@ -27,15 +28,15 @@ def _initials(first_name: str | None, last_name: str | None, name: str) -> str:
 def import_students(
     payload: ImportStudentsRequest,
     db: Session = Depends(get_db),
-    user_id: uuid.UUID | None = Depends(get_current_user_id),
+    user: User = Depends(get_current_user),
 ):
     students_dao = StudentDAO(db)
     guardians_dao = GuardianDAO(db)
-    owner_id = user_id
+    owner_id = user.id
 
     existing = {
         (student.name, student.owner_id): student
-        for student in students_dao.list()
+        for student in students_dao.list(owner_id=owner_id)
     }
     key_to_student: dict[str, object] = {}
     imported_students = 0
@@ -52,14 +53,14 @@ def import_students(
             if value is not None
         }
         if match is not None:
-            student = students_dao.update(match.id, updates, actor_id=user_id)
+            student = students_dao.update(match.id, updates, actor_id=user.id)
         else:
             data = {
                 **updates,
                 "initials": _initials(row.first_name, row.last_name, name),
                 "owner_id": owner_id,
             }
-            student = students_dao.create(data, actor_id=user_id)
+            student = students_dao.create(data, actor_id=user.id)
             existing[(student.name, student.owner_id)] = student
         key_to_student[row.student_key] = student
         imported_students += 1
@@ -87,7 +88,7 @@ def import_students(
                 if value is not None
             }
             if updates:
-                guardians_dao.update(match.id, updates, actor_id=user_id)
+                guardians_dao.update(match.id, updates, actor_id=user.id)
         else:
             guardians_dao.create(
                 {
@@ -97,7 +98,7 @@ def import_students(
                     "phone": row.phone,
                     "email": row.email,
                 },
-                actor_id=user_id,
+                actor_id=user.id,
             )
         imported_guardians += 1
 

@@ -110,3 +110,46 @@ def test_related_resources_are_isolated_by_student_owner(
     assert client.post(
         f"/api/v1/ai-briefs/{brief['id']}/supersede", headers=headers
     ).status_code == 404
+
+
+def test_private_workflows_require_login(anonymous_client, make_student):
+    student = make_student(guardians=[])
+    roster = {
+        "students": [{"student_key": "demo", "name": "Demo Student"}],
+        "guardians": [],
+    }
+
+    assert anonymous_client.get("/api/v1/data/load").status_code == 401
+    assert anonymous_client.get("/api/v1/dashboard/summary").status_code == 401
+    assert anonymous_client.post("/api/v1/import/students", json=roster).status_code == 401
+    assert anonymous_client.post(
+        "/api/v1/voice/uploads",
+        json={"student_id": student["id"], "content_type": "audio/webm"},
+    ).status_code == 401
+    assert anonymous_client.put("/api/v1/voice/files/test-object", content=b"x").status_code == 401
+    assert anonymous_client.post(
+        "/api/v1/voice/transcriptions",
+        json={"student_id": student["id"], "object_key": "test-object"},
+    ).status_code == 401
+    assert anonymous_client.get("/api/v1/voice/transcriptions/test-job").status_code == 401
+    assert anonymous_client.post(
+        "/api/v1/ai/contact-brief/generate",
+        json={"student_id": student["id"], "date_from": "2028-01-01", "date_to": "2028-01-31"},
+    ).status_code == 401
+    assert anonymous_client.post("/api/v1/ai/outreach-plan/generate").status_code == 401
+
+
+def test_voice_student_context_is_isolated_by_owner(client, make_student, second_auth):
+    student = make_student(guardians=[])
+    headers = second_auth["headers"]
+
+    assert client.post(
+        "/api/v1/voice/uploads",
+        json={"student_id": student["id"], "content_type": "audio/webm"},
+        headers=headers,
+    ).status_code == 404
+    assert client.post(
+        "/api/v1/voice/transcriptions",
+        json={"student_id": student["id"], "object_key": "test-object"},
+        headers=headers,
+    ).status_code == 404

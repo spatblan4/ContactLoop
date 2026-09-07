@@ -2,8 +2,13 @@ import re
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from app.api.deps import get_current_user, get_db
+from app.models import User
+from app.services.ownership import require_owned_student
 
 router = APIRouter(prefix="/voice", tags=["voice"])
 
@@ -38,7 +43,12 @@ class VoiceTranscriptionStatus(BaseModel):
 
 
 @router.post("/uploads", response_model=VoiceUploadResponse)
-def create_voice_upload(payload: VoiceUploadRequest):
+def create_voice_upload(
+    payload: VoiceUploadRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    require_owned_student(db, payload.student_id, user.id)
     object_key = uuid.uuid4().hex
     return VoiceUploadResponse(
         upload_url=f"/api/v1/voice/files/{object_key}", object_key=object_key
@@ -46,7 +56,11 @@ def create_voice_upload(payload: VoiceUploadRequest):
 
 
 @router.put("/files/{object_key}", status_code=204)
-async def upload_voice_file(object_key: str, request: Request):
+async def upload_voice_file(
+    object_key: str,
+    request: Request,
+    _user: User = Depends(get_current_user),
+):
     if not OBJECT_KEY_PATTERN.fullmatch(object_key) or ".." in object_key:
         raise ValueError("invalid object key")
     content = await request.body()
@@ -56,10 +70,15 @@ async def upload_voice_file(object_key: str, request: Request):
 
 
 @router.post("/transcriptions", response_model=VoiceTranscriptionResponse)
-def start_voice_transcription(payload: VoiceTranscriptionRequest):
+def start_voice_transcription(
+    payload: VoiceTranscriptionRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    require_owned_student(db, payload.student_id, user.id)
     return VoiceTranscriptionResponse(job_id=uuid.uuid4().hex)
 
 
 @router.get("/transcriptions/{job_id}", response_model=VoiceTranscriptionStatus)
-def get_voice_transcription(job_id: str):
+def get_voice_transcription(job_id: str, _user: User = Depends(get_current_user)):
     return VoiceTranscriptionStatus(status="completed", transcript=TRANSCRIPT_STUB)

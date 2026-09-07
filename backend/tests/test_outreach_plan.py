@@ -16,7 +16,7 @@ def test_candidate_builder_keeps_only_current_teachers_students(
     teacher_b = make_user()
     mine = make_student(headers=auth_headers(teacher_a["token"]))
     other = make_student(headers=auth_headers(teacher_b["token"]))
-    make_follow_up(mine["id"], due_at="2026-09-06T09:00:00Z")
+    make_follow_up(mine["id"], due_at="2026-09-06T09:00:00Z", headers=auth_headers(teacher_a["token"]))
     make_event(mine["id"], headers=auth_headers(teacher_a["token"]), result="No Answer")
     db = next(get_db())
     candidates = build_outreach_candidates(
@@ -60,17 +60,19 @@ def test_candidate_builder_returns_minimized_latest_confirmed_facts(
     teacher = make_user()
     headers = auth_headers(teacher["token"])
     student = make_student(headers=headers, guardians=[])
-    first_guardian = make_guardian(student["id"])
-    second_guardian = make_guardian(student["id"])
+    first_guardian = make_guardian(student["id"], headers=headers)
+    second_guardian = make_guardian(student["id"], headers=headers)
     make_follow_up(
         student["id"],
         guardian_id=first_guardian["id"],
         due_at="2026-09-07T09:00:00Z",
+        headers=headers,
     )
     make_follow_up(
         student["id"],
         guardian_id=second_guardian["id"],
         due_at="2026-09-06T09:00:00Z",
+        headers=headers,
     )
     for result, call_time in (
         ("No Answer", "2026-09-06T08:00:00Z"),
@@ -86,8 +88,8 @@ def test_candidate_builder_returns_minimized_latest_confirmed_facts(
             headers=headers,
         )
         assert response.status_code == 201, response.text
-    make_note(student["id"], content="Confirmed context", teacher_confirmed=True)
-    make_note(student["id"], content="Do not share", teacher_confirmed=False)
+    make_note(student["id"], content="Confirmed context", teacher_confirmed=True, headers=headers)
+    make_note(student["id"], content="Do not share", teacher_confirmed=False, headers=headers)
 
     db = next(get_db())
     candidate = next(
@@ -112,8 +114,8 @@ def test_candidate_builder_returns_minimized_latest_confirmed_facts(
     assert candidate["teacher_confirmed_notes"] == ["Confirmed context"]
 
 
-def test_outreach_plan_requires_login(client):
-    response = client.post("/api/v1/ai/outreach-plan/generate")
+def test_outreach_plan_requires_login(anonymous_client):
+    response = anonymous_client.post("/api/v1/ai/outreach-plan/generate")
 
     assert response.status_code == 401
 

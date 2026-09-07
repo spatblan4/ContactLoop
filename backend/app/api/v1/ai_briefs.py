@@ -20,7 +20,7 @@ ai_router = APIRouter(prefix="/ai", tags=["ai"])
 
 
 @ai_router.post("/contact-brief/generate", status_code=501)
-def generate_contact_brief():
+def generate_contact_brief(_user: User = Depends(get_current_user)):
     raise HTTPException(
         status_code=501, detail="AI contact brief provider is not configured."
     )
