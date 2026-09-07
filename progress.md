@@ -75,3 +75,11 @@
 - voice upload/transcription 的 student context 也验证 owner；dashboard、import 和 AI 路由强制登录。
 - TDD 证据：新增测试在修复前准确失败；修复后后端 101/101、前端 129/129 通过，Vite build 与 `git diff --check` 通过。
 - 仅保留两项第三方弃用 warning：Starlette TestClient/httpx 与 anyio BlockingPortal；不影响本次权限验收。
+
+## 2026-09-07 Supabase 增量迁移草案
+
+- 新增并本地验证 FastAPI/Supabase 兼容迁移和 SQL 契约测试。
+- 迁移为只增加结构与收紧直连数据库 policy：不会删除或清空记录、表、列，也不会变更现有 Agent 的读取 RPC。
+- 处理 `discussed_topics` 类型差异：保持旧 Supabase `text[]`，后端在 PostgreSQL 使用数组 variant。
+- 验证：后端 102/102、前端 132/132、生产构建、SQL 契约和 `git diff --check` 均通过。
+- 云端状态未变；下一步必须先向用户展示迁移审查结论，取得许可后再只读检查旧 Supabase 数据范围。

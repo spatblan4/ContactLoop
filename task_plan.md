@@ -47,7 +47,7 @@
 - [completed] 阶段 A：确认实际分支、worktree、运行服务来源和本地配置边界
 - [completed] 阶段 B：只读比较 FastAPI 模型、仓库 SQL 与旧 Supabase 实际字段
 - [completed] 阶段 C：设计兼容迁移与安全认证边界，并完成 FastAPI owner 权限修复
-- [in_progress] 阶段 C2：编写并审查 Supabase 增量兼容迁移
+- [completed] 阶段 C2：编写并完成本地审查 Supabase 增量兼容迁移；等待用户批准云端应用
 - [pending] 阶段 D：经确认后配置 dev 后端连接 Supabase 并建立虚构 Demo 数据
 - [pending] 阶段 E：验证登录 → 学生 → 联系记录 → 真实 Agent 建议
 - [pending] 阶段 F：整理验证证据；是否合并回 main 由用户另行决定

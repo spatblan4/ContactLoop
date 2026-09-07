@@ -94,3 +94,12 @@
 - FastAPI 的 Contact Brief 生成端点当前明确返回 501；前端旧路径仍可直接调用配置的 AWS Contact Brief endpoint。
 - FastAPI 的 Outreach Plan 端点需要 `OUTREACH_PLAN_ENDPOINT` 与服务 token，仓库包含一个新的 Strands/Bedrock Lambda handler，但它不是现有 `contactloop-contact-brief` Lambda 的相同请求/响应协议。
 - 因此，在“不覆盖现有 Lambda、也不贸然新建 Lambda”的边界下，不能假设现有 Contact Brief Lambda 能直接充当 Outreach Plan Agent。可选方向需要用户确认：本地运行新 Outreach Agent用于现场 demo，或仅接入现有 Contact Brief 并把全班优先级作为后续功能。
+
+## 2026-09-07 Supabase 增量兼容迁移审查
+
+- 新增 `supabase/patch-fastapi-supabase-compat.sql`；它不包含删除记录、表、列或 truncate 操作。
+- 迁移创建 FastAPI 自有的 `users` / `auth_tokens` 表，并为既有业务表补充 `owner_id`、审计/软删除字段、姓名和 guardian 补充字段、follow-up 完成时间及索引。
+- 迁移不触碰现有 Agent 读取所依赖的业务记录或 RPC；`contact_events.discussed_topics` 保持既有 `text[]` 类型。
+- FastAPI 模型已使用 PostgreSQL `text[]` variant 兼容该列，避免将历史 topics 转为 JSONB 的破坏性 schema 修改。
+- 迁移启用 RLS 并移除业务表上的所有现有 policy，使浏览器不能直连业务表；FastAPI 使用后端数据库连接，现有 Lambda 使用服务端凭据。
+- 迁移暂未连接、执行或应用至 Supabase；应用前必须再次只读核对数据范围并获用户明确批准。
