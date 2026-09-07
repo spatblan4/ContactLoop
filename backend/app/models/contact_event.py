@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.types import GUID
@@ -23,7 +24,9 @@ class ContactEvent(AuditMixin, Base):
     attempt_number: Mapped[int] = mapped_column(Integer, nullable=False)
     topic: Mapped[str | None] = mapped_column(Text)
     planned_topic: Mapped[str | None] = mapped_column(Text)
-    discussed_topics: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    discussed_topics: Mapped[list[str]] = mapped_column(
+        JSON().with_variant(ARRAY(Text), "postgresql"), nullable=False, default=list
+    )
     teacher_note: Mapped[str | None] = mapped_column(Text)
     follow_up_id: Mapped[uuid.UUID | None] = mapped_column(
         GUID(),
