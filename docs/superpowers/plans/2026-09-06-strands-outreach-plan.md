@@ -31,7 +31,7 @@
 - Produces `build_outreach_candidates(db: Session, owner_id: UUID | None, now: datetime) -> list[dict]`.
 - Candidates include only `student_id`, `student_name`, the most recent contact result/time, open follow-up due time, and teacher-confirmed note text.
 
-- [ ] **Step 1: Write the failing candidate tests**
+- [ ] **Step 1: Write the failing internal candidate-builder tests**
 
 ```python
 def test_candidate_builder_keeps_only_current_teachers_students(client, make_user, make_student, make_event, make_follow_up):
@@ -55,7 +55,7 @@ def test_candidate_builder_keeps_only_current_teachers_students(client, make_use
 
 Run: `.venv/bin/pytest backend/tests/test_outreach_plan.py -q`
 
-Expected: FAIL because the endpoint and candidate builder do not exist.
+Expected: FAIL because the candidate builder does not exist.
 
 - [ ] **Step 3: Add the minimal schemas and deterministic candidate builder**
 
@@ -72,7 +72,7 @@ class OutreachPlanResponse(BaseModel):
     items: list[OutreachPlanItem]
 ```
 
-Use `StudentDAO.list(owner_id=owner_id)`, `ContactEventDAO.list(owner_id=owner_id)`, `FollowUpDAO.list(status="open", owner_id=owner_id)`, and `TeacherNoteDAO.list(owner_id=owner_id)` to construct candidates. Do not pass phone numbers, provider IDs, or tokens into candidate dictionaries.
+Use `StudentDAO.list(owner_id=owner_id)`, `ContactEventDAO.list(owner_id=owner_id)`, `FollowUpDAO.list(status="open", owner_id=owner_id)`, and `TeacherNoteDAO.list(owner_id=owner_id)` to construct candidates. Do not pass phone numbers, provider IDs, or tokens into candidate dictionaries. This task creates no browser-facing route.
 
 - [ ] **Step 4: Run the candidate tests to verify GREEN**
 
@@ -158,7 +158,7 @@ git add ai/outreach_plan ai/requirements.txt ai/tests/test_outreach_plan.py
 git commit -m "feat: add protected strands outreach plan service"
 ```
 
-### Task 3: Wire FastAPI authorization to the Strands service
+### Task 3: Create the authenticated FastAPI Agent interface
 
 **Files:**
 - Modify: `backend/app/core/config.py`
@@ -219,7 +219,7 @@ def generate_outreach_plan(
     return invoke_outreach_agent(candidates)
 ```
 
-If no candidates exist, return `source="agent"` and `items=[]` without calling Bedrock. If `OUTREACH_PLAN_ENDPOINT` or `OUTREACH_PLAN_SERVICE_TOKEN` is absent, return the same 503 message instead of exposing configuration names.
+If no candidates exist, return `source="agent"` and `items=[]` without calling Bedrock. If `OUTREACH_PLAN_ENDPOINT` or `OUTREACH_PLAN_SERVICE_TOKEN` is absent, return the same 503 message instead of exposing configuration names. The response contains only `generated_at`, `source`, and Agent `items`; it must not include the internal candidate list or extra student context.
 
 - [ ] **Step 4: Run route tests to verify GREEN**
 
