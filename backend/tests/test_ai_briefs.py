@@ -2,10 +2,7 @@ import uuid
 
 from helpers import parse_dt
 
-ACTOR = str(uuid.uuid4())
-
-
-def test_create_ai_brief_defaults_and_audit(client, make_student):
+def test_create_ai_brief_defaults_and_audit(client, make_student, auth_user):
     student = make_student(guardians=[])
     response = client.post(
         "/api/v1/ai-briefs",
@@ -16,7 +13,6 @@ def test_create_ai_brief_defaults_and_audit(client, make_student):
             "key_topics": ["Homework"],
             "open_items": ["Share study plan"],
         },
-        headers={"X-User-Id": ACTOR},
     )
     assert response.status_code == 201
     body = response.json()
@@ -26,7 +22,7 @@ def test_create_ai_brief_defaults_and_audit(client, make_student):
     assert body["open_items"] == ["Share study plan"]
     assert body["approved_at"] is None
     assert body["generated_at"] is not None
-    assert body["created_by"] == ACTOR
+    assert body["created_by"] == auth_user["id"]
     for field in ("id", "created_at", "updated_at", "created_by", "updated_by"):
         assert field in body
 

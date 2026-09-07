@@ -2,16 +2,11 @@ import uuid
 
 from helpers import parse_dt
 
-ACTOR = str(uuid.uuid4())
-EDITOR = str(uuid.uuid4())
-
-
-def test_create_teacher_note_defaults(client, make_student):
+def test_create_teacher_note_defaults(client, make_student, auth_user):
     student = make_student(guardians=[])
     response = client.post(
         "/api/v1/teacher-notes",
         json={"student_id": student["id"], "content": "Parent asked about homework."},
-        headers={"X-User-Id": ACTOR},
     )
     assert response.status_code == 201
     body = response.json()
@@ -19,7 +14,7 @@ def test_create_teacher_note_defaults(client, make_student):
     assert body["source"] == "typed"
     assert body["teacher_confirmed"] is False
     assert body["contact_event_id"] is None
-    assert body["created_by"] == ACTOR
+    assert body["created_by"] == auth_user["id"]
     for field in ("id", "created_at", "updated_at", "created_by", "updated_by"):
         assert field in body
 
@@ -54,19 +49,18 @@ def test_list_teacher_notes_filtered_by_student(client, make_student, make_note)
     assert [n["id"] for n in response.json()] == [note_a["id"]]
 
 
-def test_patch_teacher_note_persists_and_restamps(client, make_student, make_note):
+def test_patch_teacher_note_persists_and_restamps(client, make_student, make_note, auth_user):
     note = make_note(make_student(guardians=[])["id"])
     before = parse_dt(note["updated_at"])
     response = client.patch(
         f"/api/v1/teacher-notes/{note['id']}",
         json={"content": "Updated content.", "teacher_confirmed": True},
-        headers={"X-User-Id": EDITOR},
     )
     assert response.status_code == 200
     body = response.json()
     assert body["content"] == "Updated content."
     assert body["teacher_confirmed"] is True
-    assert body["updated_by"] == EDITOR
+    assert body["updated_by"] == auth_user["id"]
     assert parse_dt(body["updated_at"]) > before
 
 

@@ -2,11 +2,7 @@ import uuid
 
 from helpers import parse_dt
 
-ACTOR = str(uuid.uuid4())
-EDITOR = str(uuid.uuid4())
-
-
-def test_create_guardian_with_actor_header(client, make_student):
+def test_create_guardian_with_authenticated_actor(client, make_student, auth_user):
     student = make_student(guardians=[])
     response = client.post(
         "/api/v1/guardians",
@@ -17,14 +13,13 @@ def test_create_guardian_with_actor_header(client, make_student):
             "phone": "555-0100",
             "email": "sarah@example.com",
         },
-        headers={"X-User-Id": ACTOR},
     )
     assert response.status_code == 201
     body = response.json()
     assert body["student_id"] == student["id"]
     assert body["name"] == "Sarah Johnson"
-    assert body["created_by"] == ACTOR
-    assert body["updated_by"] == ACTOR
+    assert body["created_by"] == auth_user["id"]
+    assert body["updated_by"] == auth_user["id"]
 
 
 def test_list_guardians_filters_by_student(client, make_student, make_guardian):
@@ -45,19 +40,18 @@ def test_get_guardian_by_id(client, make_student, make_guardian):
     assert response.json()["name"] == "Derek Noel"
 
 
-def test_patch_guardian_persists_and_restamps_audit(client, make_student, make_guardian):
+def test_patch_guardian_persists_and_restamps_audit(client, make_student, make_guardian, auth_user):
     guardian = make_guardian(make_student(guardians=[])["id"])
     before = parse_dt(guardian["updated_at"])
     response = client.patch(
         f"/api/v1/guardians/{guardian['id']}",
         json={"preferred_contact_method": "phone", "phone": "555-0999"},
-        headers={"X-User-Id": EDITOR},
     )
     assert response.status_code == 200
     body = response.json()
     assert body["preferred_contact_method"] == "phone"
     assert body["phone"] == "555-0999"
-    assert body["updated_by"] == EDITOR
+    assert body["updated_by"] == auth_user["id"]
     assert parse_dt(body["updated_at"]) > before
 
 

@@ -4,14 +4,15 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_current_user_id, get_db
+from app.api.deps import get_current_user, get_db
 from app.core.exceptions import NotFoundError
 from app.dao import AiContactBriefDAO
-from app.models import User
+from app.models import AiContactBrief, User
 from app.schemas.ai_brief import AiBriefCreate, AiBriefRead, AiBriefUpdate
 from app.schemas.outreach_plan import OutreachPlanResponse
 from app.services.outreach_plan import build_outreach_candidates
 from app.services.outreach_plan_client import OutreachAgentUnavailable, invoke_outreach_agent
+from app.services.ownership import require_owned_resource, require_owned_student
 
 router = APIRouter(prefix="/ai-briefs", tags=["ai-briefs"])
 
@@ -41,31 +42,32 @@ def list_ai_briefs(
     student_id: uuid.UUID | None = None,
     latest: bool = False,
     db: Session = Depends(get_db),
-    user_id: uuid.UUID | None = Depends(get_current_user_id),
+    user: User = Depends(get_current_user),
 ):
     dao = AiContactBriefDAO(db)
     if latest:
-        brief = dao.list(student_id=student_id, latest=True, owner_id=user_id)
+        brief = dao.list(student_id=student_id, latest=True, owner_id=user.id)
         if brief is None:
             raise NotFoundError("ai_contact_briefs latest not found")
         return brief
-    return dao.list(student_id=student_id, owner_id=user_id)
+    return dao.list(student_id=student_id, owner_id=user.id)
 
 
 @router.post("", response_model=AiBriefRead, status_code=201)
 def create_ai_brief(
     payload: AiBriefCreate,
     db: Session = Depends(get_db),
-    user_id: uuid.UUID | None = Depends(get_current_user_id),
+    user: User = Depends(get_current_user),
 ):
-    brief = AiContactBriefDAO(db).create(payload.model_dump(), actor_id=user_id)
+    require_owned_student(db, payload.student_id, user.id)
+    brief = AiContactBriefDAO(db).create(payload.model_dump(), actor_id=user.id)
     db.commit()
     return brief
 
 
 @router.get("/{brief_id}", response_model=AiBriefRead)
-def get_ai_brief(brief_id: uuid.UUID, db: Session = Depends(get_db)):
-    return AiContactBriefDAO(db).require(brief_id)
+def get_ai_brief(brief_id: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    return require_owned_resource(db, AiContactBrief, brief_id, user.id, "ai brief")
 
 
 @router.patch("/{brief_id}", response_model=AiBriefRead)
@@ -73,10 +75,11 @@ def update_ai_brief(
     brief_id: uuid.UUID,
     payload: AiBriefUpdate,
     db: Session = Depends(get_db),
-    user_id: uuid.UUID | None = Depends(get_current_user_id),
+    user: User = Depends(get_current_user),
 ):
+    brief = require_owned_resource(db, AiContactBrief, brief_id, user.id, "ai brief")
     brief = AiContactBriefDAO(db).update(
-        brief_id, payload.model_dump(exclude_unset=True), actor_id=user_id
+        brief, payload.model_dump(exclude_unset=True), actor_id=user.id
     )
     db.commit()
     return brief
@@ -86,9 +89,10 @@ def update_ai_brief(
 def delete_ai_brief(
     brief_id: uuid.UUID,
     db: Session = Depends(get_db),
-    user_id: uuid.UUID | None = Depends(get_current_user_id),
+    user: User = Depends(get_current_user),
 ):
-    AiContactBriefDAO(db).soft_delete(brief_id, actor_id=user_id)
+    brief = require_owned_resource(db, AiContactBrief, brief_id, user.id, "ai brief")
+    AiContactBriefDAO(db).soft_delete(brief, actor_id=user.id)
     db.commit()
 
 
@@ -96,9 +100,10 @@ def delete_ai_brief(
 def approve_ai_brief(
     brief_id: uuid.UUID,
     db: Session = Depends(get_db),
-    user_id: uuid.UUID | None = Depends(get_current_user_id),
+    user: User = Depends(get_current_user),
 ):
-    brief = AiContactBriefDAO(db).approve(brief_id, actor_id=user_id)
+    brief = require_owned_resource(db, AiContactBrief, brief_id, user.id, "ai brief")
+    brief = AiContactBriefDAO(db).approve(brief, actor_id=user.id)
     db.commit()
     return brief
 
@@ -107,8 +112,9 @@ def approve_ai_brief(
 def supersede_ai_brief(
     brief_id: uuid.UUID,
     db: Session = Depends(get_db),
-    user_id: uuid.UUID | None = Depends(get_current_user_id),
+    user: User = Depends(get_current_user),
 ):
-    brief = AiContactBriefDAO(db).supersede(brief_id, actor_id=user_id)
+    brief = require_owned_resource(db, AiContactBrief, brief_id, user.id, "ai brief")
+    brief = AiContactBriefDAO(db).supersede(brief, actor_id=user.id)
     db.commit()
     return brief

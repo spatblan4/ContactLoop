@@ -1,4 +1,5 @@
 import uuid
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -20,3 +21,27 @@ def require_owned_student(
     if student is None:
         raise NotFoundError("student not found")
     return student
+
+
+def require_owned_resource(
+    db: Session,
+    resource_model: type,
+    resource_id: uuid.UUID,
+    owner_id: uuid.UUID,
+    label: str,
+) -> Any:
+    resource = db.scalar(
+        select(resource_model).where(
+            resource_model.id == resource_id,
+            resource_model.deleted_at.is_(None),
+            resource_model.student_id.in_(
+                select(Student.id).where(
+                    Student.owner_id == owner_id,
+                    Student.deleted_at.is_(None),
+                )
+            ),
+        )
+    )
+    if resource is None:
+        raise NotFoundError(f"{label} not found")
+    return resource

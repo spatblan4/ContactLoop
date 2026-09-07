@@ -2,23 +2,19 @@ import uuid
 
 from helpers import parse_dt
 
-ACTOR = str(uuid.uuid4())
-
-
-def test_create_follow_up_with_defaults_and_actor(client, make_student, make_guardian):
+def test_create_follow_up_with_defaults_and_actor(client, make_student, make_guardian, auth_user):
     student = make_student(guardians=[])
     guardian = make_guardian(student["id"])
     response = client.post(
         "/api/v1/follow-ups",
         json={"student_id": student["id"], "guardian_id": guardian["id"], "due_at": "2028-03-01T09:00:00Z"},
-        headers={"X-User-Id": ACTOR},
     )
     assert response.status_code == 201
     body = response.json()
     assert body["status"] == "open"
     assert body["completed_at"] is None
-    assert body["created_by"] == ACTOR
-    assert body["updated_by"] == ACTOR
+    assert body["created_by"] == auth_user["id"]
+    assert body["updated_by"] == auth_user["id"]
     for field in ("id", "created_at", "updated_at", "created_by", "updated_by"):
         assert field in body
 
