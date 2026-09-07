@@ -3,9 +3,11 @@ import uuid
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user_id, get_db
+from app.api.deps import get_current_user, get_db
 from app.dao import GuardianDAO, StudentDAO
+from app.models import User
 from app.schemas.student import StudentCreate, StudentRead, StudentUpdate
+from app.services.ownership import require_owned_student
 
 router = APIRouter(prefix="/students", tags=["students"])
 
@@ -14,16 +16,16 @@ router = APIRouter(prefix="/students", tags=["students"])
 def list_students(
     search: str | None = Query(default=None),
     db: Session = Depends(get_db),
-    user_id: uuid.UUID | None = Depends(get_current_user_id),
+    user: User = Depends(get_current_user),
 ):
-    return StudentDAO(db).list(search=search, owner_id=user_id)
+    return StudentDAO(db).list(search=search, owner_id=user.id)
 
 
 @router.post("", response_model=StudentRead, status_code=201)
 def create_student(
     payload: StudentCreate,
     db: Session = Depends(get_db),
-    user_id: uuid.UUID | None = Depends(get_current_user_id),
+    user: User = Depends(get_current_user),
 ):
     dao = StudentDAO(db)
     data = {
@@ -31,22 +33,25 @@ def create_student(
         for key, value in payload.model_dump(exclude={"guardians"}).items()
         if value is not None
     }
-    if user_id is not None:
-        data["owner_id"] = user_id
-    student = dao.create(data, actor_id=user_id)
+    data["owner_id"] = user.id
+    student = dao.create(data, actor_id=user.id)
     guardian_dao = GuardianDAO(db)
     for guardian in payload.guardians:
         guardian_dao.create(
             {**guardian.model_dump(exclude_none=True), "student_id": student.id},
-            actor_id=user_id,
+            actor_id=user.id,
         )
     db.commit()
     return dao.get(student.id)
 
 
 @router.get("/{student_id}", response_model=StudentRead)
-def get_student(student_id: uuid.UUID, db: Session = Depends(get_db)):
-    return StudentDAO(db).require(student_id)
+def get_student(
+    student_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    return require_owned_student(db, student_id, user.id)
 
 
 @router.patch("/{student_id}", response_model=StudentRead)
@@ -54,10 +59,11 @@ def update_student(
     student_id: uuid.UUID,
     payload: StudentUpdate,
     db: Session = Depends(get_db),
-    user_id: uuid.UUID | None = Depends(get_current_user_id),
+    user: User = Depends(get_current_user),
 ):
+    student = require_owned_student(db, student_id, user.id)
     student = StudentDAO(db).update(
-        student_id, payload.model_dump(exclude_unset=True), actor_id=user_id
+        student, payload.model_dump(exclude_unset=True), actor_id=user.id
     )
     db.commit()
     return student
@@ -67,7 +73,8 @@ def update_student(
 def delete_student(
     student_id: uuid.UUID,
     db: Session = Depends(get_db),
-    user_id: uuid.UUID | None = Depends(get_current_user_id),
+    user: User = Depends(get_current_user),
 ):
-    StudentDAO(db).soft_delete(student_id, actor_id=user_id)
+    student = require_owned_student(db, student_id, user.id)
+    StudentDAO(db).soft_delete(student, actor_id=user.id)
     db.commit()

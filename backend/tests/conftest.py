@@ -24,7 +24,53 @@ from app.main import app
 @pytest.fixture(scope="session")
 def client():
     with TestClient(app) as test_client:
+        response = test_client.post(
+            "/api/v1/auth/register",
+            json={
+                "email": f"default-{uuid.uuid4().hex}@example.com",
+                "password": "Default-Test-Pass-1",
+                "name": "Default Test Teacher",
+            },
+        )
+        assert response.status_code == 201, response.text
+        auth = response.json()
+        test_client.headers["Authorization"] = f"Bearer {auth['token']}"
+        test_client.auth_context = auth
         yield test_client
+
+
+@pytest.fixture(scope="session")
+def anonymous_client():
+    with TestClient(app) as test_client:
+        yield test_client
+
+
+@pytest.fixture(scope="session")
+def auth_user(client):
+    return client.auth_context["user"]
+
+
+@pytest.fixture(scope="session")
+def auth_headers(client):
+    return {"Authorization": f"Bearer {client.auth_context['token']}"}
+
+
+@pytest.fixture
+def second_auth(client):
+    response = client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": f"second-{uuid.uuid4().hex}@example.com",
+            "password": "Second-Test-Pass-1",
+            "name": "Second Test Teacher",
+        },
+    )
+    assert response.status_code == 201, response.text
+    auth = response.json()
+    return {
+        "user": auth["user"],
+        "headers": {"Authorization": f"Bearer {auth['token']}"},
+    }
 
 
 @pytest.fixture

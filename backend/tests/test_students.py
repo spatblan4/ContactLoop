@@ -2,11 +2,7 @@ import uuid
 
 from helpers import parse_dt
 
-ACTOR = str(uuid.uuid4())
-EDITOR = str(uuid.uuid4())
-
-
-def test_create_student_with_nested_guardians(client, make_student):
+def test_create_student_with_nested_guardians(client, make_student, auth_user):
     student = make_student(
         name="Amara Okafor",
         initials="AO",
@@ -15,7 +11,6 @@ def test_create_student_with_nested_guardians(client, make_student):
             {"name": "Chidi Okafor", "relation": "Dad", "phone": "555-0101"},
             {"name": "Ngozi Okafor", "relation": "Mom", "phone": "555-0102", "email": "ngozi@example.com"},
         ],
-        headers={"X-User-Id": ACTOR},
     )
     assert student["name"] == "Amara Okafor"
     assert student["initials"] == "AO"
@@ -25,16 +20,16 @@ def test_create_student_with_nested_guardians(client, make_student):
     assert student["guardians"][1]["email"] == "ngozi@example.com"
     for field in ("id", "created_at", "updated_at", "created_by", "updated_by"):
         assert field in student
-    assert student["created_by"] == ACTOR
-    assert student["updated_by"] == ACTOR
+    assert student["created_by"] == auth_user["id"]
+    assert student["updated_by"] == auth_user["id"]
 
 
-def test_audit_fields_present_for_anonymous_create(make_student):
+def test_audit_fields_record_authenticated_create(make_student, auth_user):
     student = make_student()
     for field in ("id", "created_at", "updated_at", "created_by", "updated_by"):
         assert field in student
-    assert student["created_by"] is None
-    assert student["updated_by"] is None
+    assert student["created_by"] == auth_user["id"]
+    assert student["updated_by"] == auth_user["id"]
 
 
 def test_get_student_includes_guardians(client, make_student):
@@ -46,19 +41,18 @@ def test_get_student_includes_guardians(client, make_student):
     assert [g["name"] for g in body["guardians"]] == ["Rosa Diaz"]
 
 
-def test_patch_student_updates_name_stamps_updated_at_and_actor(client, make_student):
-    student = make_student(name="Amara Okafor", headers={"X-User-Id": ACTOR})
+def test_patch_student_updates_name_stamps_updated_at_and_actor(client, make_student, auth_user):
+    student = make_student(name="Amara Okafor")
     before = parse_dt(student["updated_at"])
     response = client.patch(
         f"/api/v1/students/{student['id']}",
         json={"name": "Amara Okafor-Smith"},
-        headers={"X-User-Id": EDITOR},
     )
     assert response.status_code == 200
     body = response.json()
     assert body["name"] == "Amara Okafor-Smith"
-    assert body["created_by"] == ACTOR
-    assert body["updated_by"] == EDITOR
+    assert body["created_by"] == auth_user["id"]
+    assert body["updated_by"] == auth_user["id"]
     assert parse_dt(body["updated_at"]) > before
     assert parse_dt(body["created_at"]) == parse_dt(student["created_at"])
 
@@ -140,3 +134,47 @@ def test_unknown_student_returns_404_for_get_patch_delete(client):
 def test_malformed_student_id_returns_400(client):
     response = client.get("/api/v1/students/not-a-uuid")
     assert response.status_code == 400
+
+
+def test_students_require_login(anonymous_client, make_student):
+    student = make_student()
+    unknown = str(uuid.uuid4())
+
+    assert anonymous_client.get("/api/v1/students").status_code == 401
+    assert anonymous_client.post(
+        "/api/v1/students", json={"name": "Anonymous", "guardians": []}
+    ).status_code == 401
+    assert anonymous_client.get(f"/api/v1/students/{student['id']}").status_code == 401
+    assert anonymous_client.patch(
+        f"/api/v1/students/{student['id']}", json={"name": "Anonymous edit"}
+    ).status_code == 401
+    assert anonymous_client.delete(f"/api/v1/students/{student['id']}").status_code == 401
+    assert anonymous_client.get(f"/api/v1/students/{unknown}").status_code == 401
+
+
+def test_student_ids_are_isolated_by_owner(client, make_student, second_auth):
+    student = make_student(name="Private Student")
+    foreign_headers = second_auth["headers"]
+
+    assert client.get("/api/v1/students", headers=foreign_headers).json() == []
+    assert client.get(
+        f"/api/v1/students/{student['id']}", headers=foreign_headers
+    ).status_code == 404
+    assert client.patch(
+        f"/api/v1/students/{student['id']}",
+        json={"name": "Foreign edit"},
+        headers=foreign_headers,
+    ).status_code == 404
+    assert client.delete(
+        f"/api/v1/students/{student['id']}", headers=foreign_headers
+    ).status_code == 404
+
+
+def test_x_user_id_cannot_spoof_student_owner(client, make_student, auth_user, second_auth):
+    student = make_student(headers={"X-User-Id": second_auth["user"]["id"]})
+
+    assert student["owner_id"] == auth_user["id"]
+    assert student["created_by"] == auth_user["id"]
+    assert client.get(
+        f"/api/v1/students/{student['id']}", headers=second_auth["headers"]
+    ).status_code == 404

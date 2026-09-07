@@ -83,8 +83,8 @@ def test_login_rejects_wrong_password(client, make_user):
     assert response.status_code == 401
 
 
-def test_me_requires_token(client):
-    response = client.get("/api/v1/auth/me")
+def test_me_requires_token(anonymous_client):
+    response = anonymous_client.get("/api/v1/auth/me")
     assert response.status_code == 401
 
 
