@@ -9,8 +9,8 @@ BACKEND_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACKEND_DIR))
 
 TMP_DIR = Path(tempfile.mkdtemp(prefix="contactloop_pytest_"))
-os.environ.pop("SUPABASE_DB_URL", None)
-os.environ.pop("DATABASE_URL", None)
+os.environ["SUPABASE_DB_URL"] = ""
+os.environ["DATABASE_URL"] = ""
 os.environ["SQLITE_PATH"] = (TMP_DIR / "contactloop-test.db").as_posix()
 os.environ["APP_ENV"] = "test"
 os.environ.setdefault("SUPABASE_JWT_SECRET", "pytest-jwt-secret")

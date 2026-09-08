@@ -7,9 +7,12 @@ class Settings(BaseSettings):
     supabase_db_url: str | None = None
     database_url: str | None = None
     sqlite_path: str = "./data/contactloop.db"
+    supabase_url: str | None = None
+    supabase_secret_key: str | None = None
     supabase_jwt_secret: str | None = None
-    outreach_plan_endpoint: str | None = None
-    outreach_plan_service_token: str | None = None
+    contact_brief_endpoint: str | None = None
+    aws_region: str = "us-east-2"
+    bedrock_model_id: str | None = None
     cors_origins: str = "*"
     app_env: str = "development"
 

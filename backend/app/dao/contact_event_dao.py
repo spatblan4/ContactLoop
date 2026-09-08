@@ -72,6 +72,9 @@ class ContactEventDAO(BaseDAO):
             payload["student_id"], payload.get("guardian_id")
         )
         payload.setdefault("discussed_topics", [])
+        # The shared Supabase schema requires a provider. Teacher-entered
+        # outcomes are not provider calls, so retain that distinction.
+        payload.setdefault("provider", "manual")
         event = super().create(payload, actor_id=actor_id)
         self._sync_follow_up(event, actor_id=actor_id, follow_up_due_at=follow_up_due_at)
         return event

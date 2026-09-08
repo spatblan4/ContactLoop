@@ -21,6 +21,10 @@ class OutreachPlanItem(BaseModel):
     suggested_next_step: str
 
 
+class OutreachPlanAgentOutput(BaseModel):
+    items: list[OutreachPlanItem]
+
+
 class OutreachPlanResponse(BaseModel):
     generated_at: datetime
     source: Literal["agent", "demo"]

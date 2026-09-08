@@ -13,6 +13,17 @@ def test_create_event_computes_attempt_number_server_side(client, make_student, 
         assert field in event
 
 
+def test_manual_event_sets_manual_provider_for_legacy_supabase_schema(client, make_student):
+    student = make_student(guardians=[])
+    response = client.post(
+        "/api/v1/contact-events",
+        json={"student_id": student["id"], "result": "Connected"},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["provider"] == "manual"
+
+
 def test_caller_supplied_attempt_number_is_ignored(client, make_student):
     student = make_student(guardians=[])
     response = client.post(

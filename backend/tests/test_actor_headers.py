@@ -15,10 +15,10 @@ def test_invalid_bearer_token_is_rejected(anonymous_client):
     assert response.status_code == 401
 
 
-def test_ai_contact_brief_generate_returns_501(client):
+def test_ai_contact_brief_generate_rejects_unknown_student(client):
     response = client.post(
         "/api/v1/ai/contact-brief/generate",
         json={"student_id": str(uuid.uuid4()), "date_from": "2028-01-01", "date_to": "2028-01-31"},
     )
-    assert response.status_code == 501
+    assert response.status_code == 404
     assert "detail" in response.json()

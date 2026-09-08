@@ -7,3 +7,5 @@ httpx
 python-multipart
 psycopg[binary]
 pytest
+strands-agents>=1.0.0
+boto3>=1.35.0

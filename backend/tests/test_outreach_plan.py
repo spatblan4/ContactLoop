@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from types import SimpleNamespace
 
 import httpx
 
@@ -149,6 +150,82 @@ def test_outreach_plan_forwards_only_authorized_candidates(
         mine["id"]
     ]
     assert set(response.json()) == {"generated_at", "source", "items"}
+
+
+def test_outreach_plan_uses_the_local_agent_without_an_external_endpoint(
+    monkeypatch, client, make_user, make_student
+):
+    """The FastAPI server owns the local Bedrock call; no Lambda URL is required."""
+    from tests.test_auth import auth_headers
+
+    teacher = make_user()
+    headers = auth_headers(teacher["token"])
+    mine = make_student(headers=headers)
+    captured = {}
+
+    def fake_local_agent(candidates):
+        captured["candidates"] = candidates
+        return {
+            "items": [
+                {
+                    "student_id": mine["id"],
+                    "priority": "high",
+                    "reason": "An open follow-up is due.",
+                    "suggested_next_step": "Call today.",
+                }
+            ]
+        }
+
+    monkeypatch.setattr(
+        "app.services.outreach_plan_client.settings",
+        SimpleNamespace(bedrock_model_id="test-model"),
+    )
+    monkeypatch.setattr(
+        "app.services.outreach_plan_client.generate_plan",
+        fake_local_agent,
+        raising=False,
+    )
+
+    response = client.post("/api/v1/ai/outreach-plan/generate", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["source"] == "agent"
+    assert captured["candidates"][0]["student_id"] == mine["id"]
+
+
+def test_outreach_plan_rejects_agent_student_outside_authorized_candidates(
+    monkeypatch, client, make_user, make_student
+):
+    from tests.test_auth import auth_headers
+
+    teacher = make_user()
+    headers = auth_headers(teacher["token"])
+    make_student(headers=headers)
+
+    monkeypatch.setattr(
+        "app.services.outreach_plan_client.settings",
+        SimpleNamespace(bedrock_model_id="test-model"),
+    )
+    monkeypatch.setattr(
+        "app.services.outreach_plan_client.generate_plan",
+        lambda _candidates: {
+            "items": [
+                {
+                    "student_id": "99999999-9999-4999-8999-999999999999",
+                    "priority": "high",
+                    "reason": "Invented recommendation.",
+                    "suggested_next_step": "Call today.",
+                }
+            ]
+        },
+    )
+
+    response = client.post("/api/v1/ai/outreach-plan/generate", headers=headers)
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == (
+        "Outreach Agent is temporarily unavailable. Try again shortly."
+    )
 
 
 def test_outreach_plan_returns_empty_plan_without_invoking_agent(

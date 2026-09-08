@@ -10,6 +10,7 @@ from app.api.v1 import (
     imports,
     students,
     teacher_notes,
+    telephony,
     voice,
 )
 from app.core.config import settings
@@ -39,3 +40,4 @@ api_v1_router.include_router(ai_briefs.ai_router)
 api_v1_router.include_router(dashboard.router)
 api_v1_router.include_router(imports.router)
 api_v1_router.include_router(voice.router)
+api_v1_router.include_router(telephony.router)

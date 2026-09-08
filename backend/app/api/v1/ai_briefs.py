@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
@@ -12,6 +13,10 @@ from app.schemas.ai_brief import AiBriefCreate, AiBriefRead, AiBriefUpdate
 from app.schemas.outreach_plan import OutreachPlanResponse
 from app.services.outreach_plan import build_outreach_candidates
 from app.services.outreach_plan_client import OutreachAgentUnavailable, invoke_outreach_agent
+from app.services.contact_brief_client import (
+    ContactBriefUnavailable,
+    invoke_contact_brief,
+)
 from app.services.ownership import require_owned_resource, require_owned_student
 
 router = APIRouter(prefix="/ai-briefs", tags=["ai-briefs"])
@@ -19,11 +24,24 @@ router = APIRouter(prefix="/ai-briefs", tags=["ai-briefs"])
 ai_router = APIRouter(prefix="/ai", tags=["ai"])
 
 
-@ai_router.post("/contact-brief/generate", status_code=501)
-def generate_contact_brief(_user: User = Depends(get_current_user)):
-    raise HTTPException(
-        status_code=501, detail="AI contact brief provider is not configured."
-    )
+class ContactBriefGenerateRequest(BaseModel):
+    student_id: uuid.UUID
+    date_from: datetime
+    date_to: datetime
+    include_notes: bool = True
+
+
+@ai_router.post("/contact-brief/generate")
+def generate_contact_brief(
+    payload: ContactBriefGenerateRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    require_owned_student(db, payload.student_id, user.id)
+    try:
+        return invoke_contact_brief(payload.model_dump(mode="json"))
+    except ContactBriefUnavailable as error:
+        raise HTTPException(status_code=502, detail=str(error)) from error
 
 
 @ai_router.post("/outreach-plan/generate", response_model=OutreachPlanResponse)
