@@ -17,7 +17,9 @@ test('student mutations give a visible success confirmation', () => {
 });
 
 test('manual call outcome flow never invents a call duration', () => {
-  assert.match(appSource, /outcomeCopyObserver/);
-  assert.match(appSource, /Log a completed conversation/);
+  assert.match(appSource, /\['Connected','Log a completed conversation'\]/);
+  assert.match(appSource, /durationSeconds:null/);
+  assert.doesNotMatch(appSource, /durationSeconds:m\.result==='Connected'\?463:null/);
+  assert.doesNotMatch(appSource, /outcomeCopyObserver/);
   assert.match(styles, /✓ Connected · Logged manually/);
 });
