@@ -90,3 +90,29 @@
 - 4 位 students 和所有关联业务记录均使用仓库 Demo seed 的固定 UUID；数量与预期 Demo 范围一致。
 - 未读取、显示或写入任何学生文本、联系方式、备注或云端数据。
 - 下一步需要用户明确授权后才可执行兼容迁移 SQL；该操作会更改云端 schema 并撤销旧浏览器直连 policy。
+
+## 2026-09-07 Supabase 数据库连接检查
+
+- 已确认 `dev/backend/.env` 包含所需配置项；未输出连接串或密钥。
+- 两次只读 `SELECT 1` 连接检查均未通过，Supabase 返回密码认证失败；未执行迁移、未创建表、未修改任何云端记录。
+- 随后以不输出密码的方式检查 SQLAlchemy 解析结果：`SUPABASE_DB_URL` 已被优先读取，用户名为完整的 `postgres.norwecgwrdljbfrbnxbi`、主机和端口也正确。根因因此缩小为数据库密码本身不正确，或密码包含 URL 特殊字符但没有编码。
+- 下一步是让用户在 Supabase Dashboard 确认或重置“Database password”（不是 anon key 或 service-role key），优先使用不含 URL 特殊字符的新密码；然后再做一次只读连接测试。
+- 用户修正 `.env` 中重复的变量名前缀后，只读 `SELECT 1` 已返回 `database_connection=ok`；FastAPI 的 Supabase Postgres 连接已验证成功。云端 schema 和数据仍未被修改。
+- 安全检查发现 FastAPI 启动生命周期会调用 `Base.metadata.create_all(engine)`；因此在用户明确批准兼容迁移之前，不应重启后端，以免启动过程对 Supabase schema 产生自动写入。
+- 用户明确批准移除旧 RLS 策略后，已在 Supabase SQL Editor 成功执行 `supabase/patch-fastapi-supabase-compat.sql`；结果为 `Success. No rows returned`。
+- 执行后的只读核对通过：`users`、`auth_tokens` 和所有目标字段存在；Demo 记录总数仍为 students 4、guardians 4、contact_events 31、follow_ups 4、teacher_notes 6、ai_contact_briefs 5；8 张业务/认证表剩余 RLS policy 数为 0。
+- 尚未重启 FastAPI，也尚未创建 Demo 登录账号或为既有 Demo students 设置 `owner_id`；必须先完成该账号归属，才能让 owner 安全过滤正确显示 Demo 数据。
+- 已只读确认 Supabase 已覆盖 FastAPI 全部模型表；随后重启本地 `ContactLoop-dev` FastAPI 服务。`/api/v1/meta` 返回 `database: postgres`，未登录 `/api/v1/students` 仍返回 401。
+- 已新增本机忽略的前端 `.env`：指定 `VITE_API_BASE_URL=http://127.0.0.1:8000` 与 `VITE_APP_MODE=authenticated`，没有暴露 Supabase 浏览器直连配置。Vite 已重新以 `127.0.0.1:5173` 启动且本机检查返回 HTTP 200。
+- 已在默认浏览器打开本地注册页，等待用户自行输入 Demo 账号密码；尚未创建账号或修改现有 students 的 `owner_id`。
+
+## 2026-09-07 前端空白页修复
+
+- 通过 Chrome 控制台定位根因：`state` 初始化时调用 `createDemoOutreachPlan()`，而它依赖的 `DEMO_OUTREACH_COPY` 尚未声明，触发 JavaScript temporal-dead-zone 错误并导致白屏。
+- 按 TDD 新增 `tests/app-initialization-order.test.js`；修复前按预期失败，随后仅将 `state` 初始化移到 Demo 文案声明之后。
+- 验证：新测试通过，前端 133/133 测试通过，生产构建通过；浏览器已验证首页显示 Sign in / Create account。
+
+## 2026-09-07 Demo 账号归属
+
+- 用户在本机页面创建 `demo@contactloop.test` 后，只读确认账号匹配数为 1、未归属 Demo students 为 4。
+- 在显式授权下，使用单一受限事务只更新这 4 行 students 的 `owner_id`、`updated_by`、`updated_at`；结果 `demo_students_assigned: 4`。没有复制、删除或改写任何联系记录。

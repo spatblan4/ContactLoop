@@ -92,7 +92,7 @@
 - students 的详情、更新和删除端点按当前源码没有验证该 student 是否属于当前用户。其他资源仍需逐端点完成同类授权审计，不能把“有登录”直接等同于“所有 CRUD 已租户隔离”。
 - dev 中有两类不同 AI：现有 Contact Brief Agent 针对单个 student，从 Supabase 读取并生成摘要；新 Outreach Plan Agent 针对整个已授权候选列表，回答“谁该联系/为什么/下一步”。
 - FastAPI 的 Contact Brief 生成端点当前明确返回 501；前端旧路径仍可直接调用配置的 AWS Contact Brief endpoint。
-- FastAPI 的 Outreach Plan 端点需要 `OUTREACH_PLAN_ENDPOINT` 与服务 token，仓库包含一个新的 Strands/Bedrock Lambda handler，但它不是现有 `contactloop-contact-brief` Lambda 的相同请求/响应协议。
+- 历史发现（已被取代）：当时 FastAPI 的 Outreach Plan 端点需要 `OUTREACH_PLAN_ENDPOINT` 与服务 token。当前实现已改为在 FastAPI 内运行真实 Strands Agent，并直接调用 Amazon Bedrock；现有 `contactloop-contact-brief` Lambda 保持不变。
 - 因此，在“不覆盖现有 Lambda、也不贸然新建 Lambda”的边界下，不能假设现有 Contact Brief Lambda 能直接充当 Outreach Plan Agent。可选方向需要用户确认：本地运行新 Outreach Agent用于现场 demo，或仅接入现有 Contact Brief 并把全班优先级作为后续功能。
 
 ## 2026-09-07 Supabase 增量兼容迁移审查

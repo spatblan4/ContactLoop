@@ -1,5 +1,7 @@
 # Strands Outreach Plan Design
 
+> **Superseded architecture (2026-09-07):** The external Outreach Lambda/service described below was retired before submission. The active implementation runs the real Strands Agent inside FastAPI at `backend/app/services/outreach_plan_agent.py` and calls Amazon Bedrock directly. The existing Contact Brief Lambda remains unchanged.
+
 ## Goal
 
 Add a teacher-reviewed, daily outreach plan to ContactLoop. A Strands Agent will turn a teacher's existing contact history, approved notes, and open follow-ups into a prioritized list of students to contact and suggested next steps.
