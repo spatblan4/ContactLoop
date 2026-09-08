@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ContactLoop · 当前项目架构</title>
+  <title>ContactLoop · Agent Architecture</title>
   <style>
     :root {
       color-scheme: dark;
@@ -27,9 +27,9 @@
     header { display: flex; justify-content: space-between; gap: 24px; align-items: end; margin-bottom: 28px; }
     .eyebrow { margin: 0 0 8px; color: var(--accent); font-size: 12px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
     h1 { margin: 0; font-size: clamp(30px, 5vw, 58px); line-height: 1; letter-spacing: -.04em; }
-    .intro { max-width: 560px; margin: 0; color: var(--muted); }
+    .intro { max-width: 620px; margin: 0; color: var(--muted); }
     .diagram-shell { overflow: auto; padding: 28px; border: 1px solid var(--line); border-radius: 24px; background: color-mix(in srgb, var(--panel) 92%, transparent); box-shadow: 0 24px 80px #0006; }
-    .mermaid { min-width: 1080px; text-align: center; }
+    .mermaid { min-width: 1180px; text-align: center; }
     .legend { display: flex; flex-wrap: wrap; gap: 10px 20px; margin-top: 18px; color: var(--muted); font-size: 13px; }
     .legend span::before { content: ""; display: inline-block; width: 24px; margin: 0 7px 3px 0; border-top: 2px solid var(--accent); }
     .legend .dashed::before { border-top-style: dashed; border-color: #e0b768; }
@@ -42,7 +42,7 @@
     mermaid.initialize({ startOnLoad: true, theme: 'base', securityLevel: 'strict', themeVariables: {
       background: '#18211d', primaryColor: '#26382c', primaryTextColor: '#edf5ee', primaryBorderColor: '#9bcf74',
       lineColor: '#b8e986', secondaryColor: '#29352f', tertiaryColor: '#202c26', clusterBkg: '#141c18', clusterBorder: '#506856',
-      edgeLabelBackground: '#18211d', fontFamily: 'ui-sans-serif, system-ui, sans-serif'
+      edgeLabelBackground: '#18211d', fontFamily: 'ui-sans-serif, system-ui, sans-serif', fontSize: '17px'
     }});
   </script>
 </head>
@@ -50,106 +50,93 @@
   <main>
     <header>
       <div>
-        <p class="eyebrow">ContactLoop · system map</p>
-        <h1>当前项目架构</h1>
+        <p class="eyebrow">ContactLoop · human-in-the-loop agent</p>
+        <h1>Agent architecture</h1>
       </div>
-      <p class="intro">基于仓库中的前端模块、Supabase Edge Functions、数据库 schema 与 AI/语音集成代码整理。</p>
+      <p class="intro">Two real Strands workflows turn owner-scoped, fictional Demo records into teacher-reviewable outreach guidance. FastAPI is the security boundary for every browser action.</p>
     </header>
 
-    <section class="diagram-shell" aria-label="ContactLoop 当前项目架构 Mermaid 图">
+    <section class="diagram-shell" aria-label="ContactLoop Agent architecture diagram">
       <div class="mermaid">
-flowchart LR
-  Teacher[教师 / 用户]
+flowchart TB
+  Teacher[Special-education teacher]
 
-  subgraph Browser[浏览器端 · Vite SPA]
-    UI[Dashboard / Students / Follow-ups / Contact Log]
-    Domain[src/lib 领域模块]
-    AuthClient[Supabase Auth client]
-    SupabaseClient[Supabase JS client]
-    VoiceUI[语音笔记与通话 UI]
+  subgraph Browser[Browser · Vite SPA]
+    UI[Dashboard and student context]
+    Review[Teacher review gate]
   end
 
-  subgraph Supabase[Supabase 项目]
-    Auth[Supabase Auth]
+  subgraph Server[Security boundary · FastAPI]
+    API[Authenticated REST API]
+    Ownership[Owner authorization]
+    Candidate[Minimized outreach candidate builder]
+    Writes[Teacher-confirmed writes]
+  end
+
+  subgraph Data[Supabase]
     DB[(Postgres)]
-    Tables[students · guardians\ncontact_events · follow_ups\nteacher_notes · ai_contact_briefs]
-    Edge[Supabase Edge Functions]
-    CallStart[start-call]
-    CallSync[sync-call-status]
-    TwilioHook[twilio-webhook]
-    BriefProxy[contact-brief-proxy]
-    VoiceUpload[create-voice-upload]
-    Transcribe[transcribe-voice-note]
-    Transcript[get-transcript-status]
+    Records[students · guardians · contact events\nfollow-ups · notes · AI brief drafts]
+    Edge[Existing call Edge Function]
   end
 
-  subgraph Telephony[外部通话服务]
-    Twilio[Twilio Voice API]
+  subgraph Outreach[Outreach Plan · runs inside FastAPI]
+    OutreachAgent[Strands Agent and narrow candidate tool]
+    Nova[Amazon Bedrock\nAmazon Nova Lite]
   end
 
-  subgraph Google[Google Cloud 语音转写]
-    GCS[(Google Cloud Storage\nvoice-notes bucket)]
-    Speech[Cloud Speech-to-Text]
+  subgraph Brief[Contact Brief · existing AWS path]
+    Lambda[Existing Contact Brief Lambda]
+    BriefAgent[Strands Agent and read-only tools]
+    BriefModel[Amazon Bedrock model]
   end
 
-  subgraph AI[AI Contact Brief 服务]
-    Lambda[AWS Lambda / Function URL]
-    Strands[Strands Agents provider]
-    Bedrock[Amazon Bedrock\nClaude model]
-  end
+  Twilio[Twilio Voice API\nverified trial numbers only]
 
   Teacher --> UI
-  UI --> Domain
-  Domain --> AuthClient
-  Domain --> SupabaseClient
-  AuthClient --> Auth
-  SupabaseClient --> DB
-  DB --> Tables
+  UI -->|Bearer token and REST| API
+  API --> Ownership
+  Ownership -->|owner-scoped reads| DB
+  DB --> Records
 
-  Domain -->|start call| Edge
-  Edge --> CallStart
-  CallStart -->|create call| Twilio
-  CallStart -->|insert Initiated event| DB
-  Twilio -.->|status callback| TwilioHook
-  TwilioHook -->|update event| DB
-  Domain -.->|poll status| CallSync
-  CallSync -->|read/update event| DB
-  CallSync -->|query status| Twilio
+  Ownership --> Candidate
+  Candidate -->|no phone, token, or provider IDs| OutreachAgent
+  OutreachAgent -->|structured generation| Nova
+  Nova -.->|ranked recommendations| OutreachAgent
+  OutreachAgent -.->|Agent suggestions| API
 
-  VoiceUI -->|request signed upload| VoiceUpload
-  VoiceUpload -.->|signed PUT URL| GCS
-  VoiceUI -->|start transcription| Transcribe
-  Transcribe -->|long-running job| Speech
-  Speech -->|read audio object| GCS
-  VoiceUI -.->|poll operation| Transcript
-  Transcript -->|query operation| Speech
-  Transcript -.->|delete after completion| GCS
-  VoiceUI -->|save confirmed note| DB
+  Ownership -->|selected student and date range| Lambda
+  Lambda --> BriefAgent
+  BriefAgent -->|read-only context| DB
+  BriefAgent --> BriefModel
+  BriefModel -.->|draft brief| BriefAgent
+  BriefAgent -.-> Lambda
+  Lambda -.-> API
 
-  Domain -->|generate brief| BriefProxy
-  BriefProxy -->|POST /contact-brief| Lambda
-  Lambda --> Strands
-  Strands -->|read-only REST / RPC| DB
-  Strands --> Bedrock
-  Bedrock --> Strands
-  Lambda -.->|pending review payload| BriefProxy
-  BriefProxy -->|save / edit / approve brief| DB
+  API -->|manual call request| Edge
+  Edge --> Twilio
+  Twilio -.->|status callback| Edge
+  Edge -->|contact event update| DB
+
+  API -.->|drafts and suggestions| UI
+  UI --> Review
+  Review -->|explicit create follow-up or approve brief| Writes
+  Writes --> DB
 
   classDef browser fill:#26382c,stroke:#b8e986,color:#edf5ee;
-  classDef supabase fill:#203a36,stroke:#66c8b4,color:#edf5ee;
+  classDef server fill:#203a36,stroke:#66c8b4,color:#edf5ee;
   classDef external fill:#302b20,stroke:#e0b768,color:#fff5dc;
   classDef data fill:#202a35,stroke:#87b9e8,color:#edf5ee;
-  class UI,Domain,AuthClient,SupabaseClient,VoiceUI browser;
-  class Auth,DB,Tables,Edge,CallStart,CallSync,TwilioHook,BriefProxy,VoiceUpload,Transcribe,Transcript supabase;
-  class Twilio,GCS,Speech,Lambda,Strands,Bedrock external;
-  class Tables,GCS data;
+  class UI,Review browser;
+  class API,Ownership,Candidate,Writes server;
+  class OutreachAgent,Nova,Lambda,BriefAgent,BriefModel,Twilio external;
+  class DB,Records,Edge data;
       </div>
-      <div class="legend" aria-label="图例">
-        <span>同步请求 / 数据流</span>
-        <span class="dashed">异步回调、轮询或可选路径</span>
+      <div class="legend" aria-label="Diagram legend">
+        <span>Authenticated request or controlled data flow</span>
+        <span class="dashed">Generated result, callback, or review return</span>
       </div>
     </section>
-    <footer>数据边界：浏览器只使用 Supabase anon key；服务端 secrets 保留在 Edge Functions / AWS 服务端。</footer>
+    <footer>Safety boundary: the browser never receives a Supabase service key, AWS credentials, or the Lambda endpoint. Agent generation never creates a follow-up; the teacher review gate controls every write.</footer>
   </main>
 </body>
 </html>
