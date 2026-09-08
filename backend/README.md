@@ -1,7 +1,11 @@
 # ContactLoop Backend
 
-FastAPI backend for ContactLoop. Supabase (Postgres) stays the primary database with
-an automatic local SQLite fallback, so the app runs with zero configuration.
+FastAPI is ContactLoop's authentication, authorization, and integration boundary.
+The browser uses this REST API for application data and never receives Supabase
+service credentials, AWS credentials, or the Contact Brief Lambda endpoint.
+
+Supabase Postgres is the shared Demo database. SQLite remains available as a local
+fallback when neither `SUPABASE_DB_URL` nor `DATABASE_URL` is configured.
 
 ## Layout
 
@@ -17,19 +21,28 @@ an automatic local SQLite fallback, so the app runs with zero configuration.
   No Answer/Busy/Failed upsert an open follow-up due `ended_at + 1 day` unless
   `follow_up_due_at` is supplied), server-computed `attempt_number`, and student
   soft delete cascades to all dependent rows.
-
-`app/main.py`, `app/schemas/`, and `app/api/` are owned by a separate worktree and
-arrive via merge.
+- `app/api/` - authenticated REST endpoints for application data, integrations, and
+  Agent generation.
+- `app/services/ownership.py` - owner checks for teacher-scoped resources.
+- `app/services/outreach_plan.py` - builds minimized, owner-scoped Agent candidates.
+- `app/services/outreach_plan_agent.py` - runs the real local Strands Agent with
+  Amazon Bedrock.
+- `app/services/contact_brief_client.py` - calls the existing Contact Brief Lambda
+  only after FastAPI verifies student ownership.
 
 ## Setup
 
 ```bash
-python -m venv .venv
-.venv\Scripts\activate     # Windows
-# source .venv/bin/activate  # macOS/Linux
-pip install -r requirements.txt
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
 cp .env.example .env
+python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
+
+Keep real settings only in the ignored `backend/.env`. Never copy a server-only
+setting into a `VITE_*` browser variable.
 
 ## Configuration
 
@@ -39,10 +52,34 @@ cp .env.example .env
 | `DATABASE_URL` | - | Generic SQLAlchemy URL override. |
 | `SQLITE_PATH` | `./data/contactloop.db` | SQLite fallback database file (parent dirs created automatically). |
 | `SUPABASE_JWT_SECRET` | - | Optional Supabase JWT secret. |
-| `CORS_ORIGINS` | `*` | Comma-separated allowed CORS origins. |
+| `SUPABASE_URL` | - | Server-side Supabase project URL used for protected Function calls. |
+| `SUPABASE_SECRET_KEY` | - | Server-only key used for protected Supabase Function calls. |
+| `CONTACT_BRIEF_ENDPOINT` | - | Existing Lambda endpoint; never exposed to the browser. |
+| `AWS_REGION` | `us-east-2` | Bedrock region for the local Outreach Agent. |
+| `BEDROCK_MODEL_ID` | - | Bedrock model for the local Outreach Agent; the Demo uses `amazon.nova-lite-v1:0`. |
+| `CORS_ORIGINS` | `*` | Comma-separated browser origins allowed to call FastAPI. |
 | `APP_ENV` | `development` | Environment name surfaced by the meta endpoint. |
 
-## Smoke test
+AWS credentials are loaded through the normal server-side AWS credential provider
+chain. Do not store access keys in this repository.
+
+## Agent safety boundaries
+
+- Every Outreach candidate is derived from the authenticated teacher's owner ID.
+- Candidate context excludes phone numbers, provider IDs, tokens, and credentials.
+- Agent output containing a student outside the authorized candidate set is rejected.
+- Agent generation never writes a follow-up. A teacher must confirm that action.
+- Contact Brief generation produces a draft that remains teacher-reviewable.
+
+## Verification
+
+From the `backend` directory, using the virtual environment created above:
+
+```bash
+.venv/bin/python -m pytest tests -q
+```
+
+The optional DAO smoke script exercises the portable local data layer:
 
 `scripts/dao_smoke.py` exercises every DAO against a temporary SQLite file: CRUD,
 audit stamping, soft-delete visibility, follow-up sync for all four call results,

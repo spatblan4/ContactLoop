@@ -1,9 +1,23 @@
-# ContactLoop AI provider layer
+# ContactLoop Contact Brief Lambda
 
-This directory contains an independent AWS provider. It does not replace the
-Twilio provider, Supabase client, or call-status functions.
+This directory contains the provider code used by the existing Contact Brief Lambda.
+It is separate from the Outreach Agent, which runs locally inside FastAPI at
+`backend/app/services/outreach_plan_agent.py`.
 
-The AWS service uses:
+## Request path
+
+```text
+Browser -> authenticated FastAPI -> existing Contact Brief Lambda
+                                -> Strands Agent -> Amazon Bedrock
+```
+
+FastAPI verifies that the selected student belongs to the signed-in teacher before
+calling the Lambda. The browser never receives the Lambda endpoint, AWS credentials,
+or a Supabase service-role key.
+
+## Provider behavior
+
+The existing AWS path uses:
 
 - Strands Agents SDK (`strands-agents`)
 - Amazon Bedrock through `BedrockModel`
@@ -16,22 +30,30 @@ The agent tools are intentionally narrow:
 - `get_teacher_notes_and_topics`
 - `get_open_follow_ups`
 
-The returned payload has `review_status: "pending"`. The browser should not put
-the narrative into a final printable brief until a teacher approves it.
+The returned payload has `review_status: "pending"`. FastAPI returns it to the
+browser, where it is saved as a draft for teacher editing and approval.
 
-## Run/deploy shape
+The Agent does not place calls, send messages, or create follow-ups.
 
-Package this folder as an AWS Lambda or deploy it as a small AWS service. Set:
+## Existing deployment configuration
+
+The ContactLoop Demo keeps its already-deployed Lambda in `us-east-2`. Do not create
+or replace a Lambda merely to run the local Outreach Agent. The deployed Lambda owns
+these server-side environment variables:
 
 ```text
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=server-only-secret
-AWS_REGION=us-east-1
-BEDROCK_MODEL_ID=us.anthropic.claude-sonnet-4-6
+SUPABASE_URL=<server-only-project-url>
+SUPABASE_SERVICE_ROLE_KEY=<server-only-key>
+AWS_REGION=us-east-2
+BEDROCK_MODEL_ID=<configured-bedrock-model-id>
 ```
 
-Run `supabase/patch-ai-contact-brief.sql` once before calling the service. The
-frontend provider adapter is `src/lib/ai-provider.js` and expects:
+Never commit populated values. This README documents the existing path; it is not an
+instruction to deploy, overwrite, or subscribe to a new model.
+
+## API contract
+
+FastAPI calls the Lambda's `/contact-brief` route with:
 
 ```text
 POST {endpoint}/contact-brief
@@ -43,5 +65,5 @@ POST {endpoint}/contact-brief
 }
 ```
 
-The service must never expose the Supabase service-role key to the browser.
-There is no voice-to-text, recording, or transcription code in this provider.
+There is no Twilio calling, voice recording, transcription, or Outreach Plan code in
+this directory.
