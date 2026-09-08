@@ -8,16 +8,21 @@ const publicPath = new URL('../public/contactloop-submission-center.html', impor
 test('submission center includes the complete persistent checklist contract', async () => {
   const html = await readFile(docsPath, 'utf8');
 
-  assert.match(html, /contactloop-submission-center-v1/);
+  assert.match(html, /contactloop-submission-center-v2/);
   for (const group of ['accounts', 'product', 'technical', 'repository', 'devpost', 'video', 'articles']) {
     assert.match(html, new RegExp(`data-check-group="${group}"`));
   }
   assert.match(html, /data-check-id="product-real-call"[^>]*checked/);
+  for (const id of ['tech-setup', 'repo-readme', 'repo-license', 'repo-disclosure', 'repo-privacy', 'devpost-description', 'devpost-pitch']) {
+    assert.match(html, new RegExp(`data-check-id="${id}"[^>]*checked`));
+  }
   assert.match(html, /data-check-id="devpost-submit"[^>]*type="checkbox">/);
   assert.match(html, /id="progressPercent"/);
   assert.match(html, /id="progressCount"/);
   assert.match(html, /id="resetProgress"/);
   assert.match(html, /data-default-checked/);
+  assert.equal((html.match(/data-default-checked="true"/g) || []).length, 26);
+  assert.equal((html.match(/data-check-id=/g) || []).length, 54);
 });
 
 test('submission center embeds three accessible collapsible articles and controls', async () => {
