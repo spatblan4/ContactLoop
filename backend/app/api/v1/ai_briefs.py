@@ -1,19 +1,31 @@
+import asyncio
+import json
+import logging
+import threading
 import uuid
 from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
+from app.core.config import settings
 from app.core.exceptions import NotFoundError
 from app.dao import AiContactBriefDAO
 from app.models import AiContactBrief, User
 from app.schemas.ai_brief import AiBriefCreate, AiBriefRead, AiBriefUpdate
-from app.schemas.outreach_plan import OutreachPlanResponse
+from app.schemas.outreach_plan import OutreachPlanAgentOutput, OutreachPlanResponse
+from app.services.agent_telemetry import configure_strands_telemetry
 from app.services.outreach_plan import build_outreach_candidates
-from app.services.outreach_plan_client import OutreachAgentUnavailable, invoke_outreach_agent
+from app.services.outreach_plan_agent import build_outreach_agent
+from app.services.outreach_plan_client import (
+    OutreachAgentUnavailable,
+    invoke_outreach_agent,
+    unauthorized_students_present,
+)
 from app.services.contact_brief_client import (
     ContactBriefUnavailable,
     invoke_contact_brief,
@@ -23,6 +35,8 @@ from app.services.ownership import require_owned_resource, require_owned_student
 router = APIRouter(prefix="/ai-briefs", tags=["ai-briefs"])
 
 ai_router = APIRouter(prefix="/ai", tags=["ai"])
+
+logger = logging.getLogger(__name__)
 
 
 class ContactBriefGenerateRequest(BaseModel):
@@ -63,6 +77,114 @@ def generate_outreach_plan(db: Session = Depends(get_db), user: User = Depends(g
         return invoke_outreach_agent(candidates, owner_id=user.id)
     except OutreachAgentUnavailable:
         raise HTTPException(status_code=503, detail="Outreach Agent is temporarily unavailable. Try again shortly.") from None
+
+
+def _sse(event: str, data: dict) -> str:
+    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+def _message_text(message: dict) -> str:
+    parts = [
+        block.get("text", "")
+        for block in message.get("content", [])
+        if isinstance(block, dict) and block.get("text")
+    ]
+    return " ".join(parts).strip()
+
+
+@ai_router.post("/outreach-plan/generate/stream")
+async def generate_outreach_plan_stream(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Stream outreach plan generation as server-sent events.
+
+    Events: ``candidates`` (authorized candidate count), ``message`` (agent
+    progress), ``plan`` (validated final plan) and ``error``.
+    """
+    candidates = build_outreach_candidates(db, user.id)
+    authorized_student_ids = {str(candidate.student_id) for candidate in candidates}
+    candidate_payload = [
+        candidate.model_dump(mode="json") for candidate in candidates
+    ]
+    timeout = getattr(settings, "outreach_agent_timeout_seconds", 90.0)
+
+    async def event_stream():
+        yield _sse("candidates", {"count": len(candidates)})
+        if not candidates:
+            response = OutreachPlanResponse(
+                generated_at=datetime.now(timezone.utc), source="agent", items=[]
+            )
+            yield _sse("plan", response.model_dump(mode="json"))
+            return
+        if not settings.bedrock_model_id:
+            yield _sse(
+                "error",
+                {
+                    "detail": "Outreach Agent is temporarily unavailable. Try again shortly."
+                },
+            )
+            return
+
+        configure_strands_telemetry()
+        cancel_signal = threading.Event()
+        agent = build_outreach_agent(candidate_payload, owner_id=user.id)
+        result = None
+        try:
+            async with asyncio.timeout(timeout):
+                async for event in agent.stream_async(
+                    "Create today's outreach plan.",
+                    structured_output_model=OutreachPlanAgentOutput,
+                    cancel_signal=cancel_signal,
+                ):
+                    if "message" in event:
+                        text = _message_text(event["message"])
+                        if text:
+                            yield _sse(
+                                "message",
+                                {"role": event["message"].get("role"), "text": text[:200]},
+                            )
+                    elif "result" in event:
+                        result = event["result"]
+        except TimeoutError:
+            cancel_signal.set()
+            logger.warning("Outreach plan streaming timed out.")
+            yield _sse(
+                "error",
+                {
+                    "detail": "Outreach Agent is temporarily unavailable. Try again shortly."
+                },
+            )
+            return
+        except Exception:
+            logger.warning("Outreach plan streaming failed.", exc_info=True)
+            yield _sse(
+                "error",
+                {
+                    "detail": "Outreach Agent is temporarily unavailable. Try again shortly."
+                },
+            )
+            return
+
+        structured = getattr(result, "structured_output", None) if result else None
+        if structured is None:
+            yield _sse("error", {"detail": "The Outreach Agent returned no plan."})
+            return
+        items = structured.model_dump(mode="json")["items"]
+        if unauthorized_students_present(items, authorized_student_ids):
+            yield _sse(
+                "error",
+                {
+                    "detail": "Outreach Agent is temporarily unavailable. Try again shortly."
+                },
+            )
+            return
+        response = OutreachPlanResponse(
+            generated_at=datetime.now(timezone.utc), source="agent", items=items
+        )
+        yield _sse("plan", response.model_dump(mode="json"))
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
 @router.get("", response_model=list[AiBriefRead] | AiBriefRead)

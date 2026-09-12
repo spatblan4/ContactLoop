@@ -103,6 +103,52 @@ create table if not exists public.voice_note_objects (
 create index if not exists voice_note_objects_user_idx on public.voice_note_objects(user_id);
 create index if not exists voice_note_objects_student_idx on public.voice_note_objects(student_id);
 
+-- Persisted Strands agent conversations (Phase 1 multi-turn outreach QA).
+create table if not exists public.agent_sessions (
+  id uuid primary key default gen_random_uuid(),
+  session_id varchar(128) not null unique,
+  user_id uuid not null references public.users(id) on delete cascade,
+  kind varchar(32) not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  created_by uuid,
+  updated_by uuid,
+  deleted_at timestamptz
+);
+
+create table if not exists public.agent_session_agents (
+  id uuid primary key default gen_random_uuid(),
+  session_id varchar(128) not null references public.agent_sessions(session_id) on delete cascade,
+  agent_id varchar(128) not null,
+  state jsonb not null default '{}'::jsonb,
+  conversation_manager_state jsonb not null default '{}'::jsonb,
+  internal_state jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  created_by uuid,
+  updated_by uuid,
+  deleted_at timestamptz,
+  constraint uq_agent_session_agent unique (session_id, agent_id)
+);
+
+create table if not exists public.agent_session_messages (
+  id uuid primary key default gen_random_uuid(),
+  session_id varchar(128) not null references public.agent_sessions(session_id) on delete cascade,
+  agent_id varchar(128) not null,
+  message_id integer not null,
+  message jsonb not null,
+  redact_message jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  created_by uuid,
+  updated_by uuid,
+  deleted_at timestamptz,
+  constraint uq_agent_session_message unique (session_id, agent_id, message_id)
+);
+
+create index if not exists agent_session_agents_session_idx on public.agent_session_agents(session_id);
+create index if not exists agent_session_messages_session_idx on public.agent_session_messages(session_id);
+
 -- Browser clients no longer access these tables directly. FastAPI owns
 -- authentication and authorization, while the existing Agent continues to use
 -- its server-side service-role credentials.
@@ -115,6 +161,9 @@ alter table public.follow_ups enable row level security;
 alter table public.teacher_notes enable row level security;
 alter table public.ai_contact_briefs enable row level security;
 alter table public.voice_note_objects enable row level security;
+alter table public.agent_sessions enable row level security;
+alter table public.agent_session_agents enable row level security;
+alter table public.agent_session_messages enable row level security;
 
 do $$
 declare
@@ -133,7 +182,10 @@ begin
         'follow_ups',
         'teacher_notes',
         'ai_contact_briefs',
-        'voice_note_objects'
+        'voice_note_objects',
+        'agent_sessions',
+        'agent_session_agents',
+        'agent_session_messages'
       )
   loop
     execute format(

@@ -8,6 +8,7 @@ from app.api.v1 import (
     follow_ups,
     guardians,
     imports,
+    outreach_conversations,
     students,
     teacher_notes,
     telephony,
@@ -41,3 +42,4 @@ api_v1_router.include_router(dashboard.router)
 api_v1_router.include_router(imports.router)
 api_v1_router.include_router(voice.router)
 api_v1_router.include_router(telephony.router)
+api_v1_router.include_router(outreach_conversations.router)

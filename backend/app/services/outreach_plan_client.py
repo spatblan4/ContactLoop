@@ -1,5 +1,6 @@
 import concurrent.futures
 import logging
+import threading
 from datetime import datetime, timezone
 
 from app.core.config import settings
@@ -15,18 +16,38 @@ class OutreachAgentUnavailable(Exception):
     pass
 
 
+def unauthorized_students_present(items: list, authorized_student_ids: set) -> bool:
+    """True if any plan item references a student outside the authorized set.
+
+    Items may be pydantic models (client path) or plain dicts (streaming path).
+    """
+    for item in items:
+        if isinstance(item, dict):
+            student_id = item.get("student_id")
+        else:
+            student_id = getattr(item, "student_id", None)
+        if str(student_id) not in authorized_student_ids:
+            return True
+    return False
+
+
 def _run_agent(candidate_payload: list[dict], owner_id: object) -> dict:
     """Run the agent with a hard timeout so a hung Bedrock call cannot hold
-    a request worker indefinitely."""
+    a request worker indefinitely. The cancel signal lets the agent loop abort
+    an in-flight model call at its next checkpoint instead of running on."""
     timeout = getattr(
         settings, "outreach_agent_timeout_seconds", DEFAULT_AGENT_TIMEOUT_SECONDS
     )
+    cancel_signal = threading.Event()
     pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
     try:
-        future = pool.submit(generate_plan, candidate_payload, owner_id)
+        future = pool.submit(
+            generate_plan, candidate_payload, owner_id, cancel_signal
+        )
         try:
             return future.result(timeout=timeout)
         except TimeoutError:
+            cancel_signal.set()
             logger.warning("Outreach agent timed out after %s seconds.", timeout)
             raise OutreachAgentUnavailable() from None
     finally:
@@ -57,9 +78,7 @@ def invoke_outreach_agent(
         logger.warning("Outreach agent failed.", exc_info=True)
         raise OutreachAgentUnavailable() from None
 
-    if any(
-        str(item.student_id) not in authorized_student_ids for item in response.items
-    ):
+    if unauthorized_students_present(response.items, authorized_student_ids):
         logger.error(
             "Outreach agent returned a student outside the authorized "
             "candidate set; rejecting the plan."

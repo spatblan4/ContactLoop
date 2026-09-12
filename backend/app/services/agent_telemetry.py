@@ -17,18 +17,20 @@ def configure_strands_telemetry() -> None:
     fail-safe: telemetry problems never break agent generation.
     """
     global _configured
-    if _configured or not (
-        settings.strands_console_tracing or settings.strands_otlp_tracing
-    ):
+    if _configured:
+        return
+    console = bool(getattr(settings, "strands_console_tracing", False))
+    otlp = bool(getattr(settings, "strands_otlp_tracing", False))
+    if not (console or otlp):
         return
     _configured = True
     try:
         from strands.telemetry import StrandsTelemetry
 
         telemetry = StrandsTelemetry()
-        if settings.strands_console_tracing:
+        if console:
             telemetry.setup_console_exporter()
-        if settings.strands_otlp_tracing:
+        if otlp:
             telemetry.setup_otlp_exporter()
         logger.info("Strands telemetry configured.")
     except Exception:

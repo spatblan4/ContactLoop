@@ -24,6 +24,9 @@ test('FastAPI compatibility migration adds owner, audit, auth, and voice tables'
   assert.match(sql, /create table if not exists public\.users/i);
   assert.match(sql, /create table if not exists public\.auth_tokens/i);
   assert.match(sql, /create table if not exists public\.voice_note_objects/i);
+  assert.match(sql, /create table if not exists public\.agent_sessions/i);
+  assert.match(sql, /create table if not exists public\.agent_session_agents/i);
+  assert.match(sql, /create table if not exists public\.agent_session_messages/i);
   assert.match(sql, /add column if not exists owner_id uuid/i);
   assert.match(sql, /add column if not exists updated_at timestamptz/i);
   assert.match(sql, /add column if not exists created_by uuid/i);

@@ -1,3 +1,8 @@
+from app.models.agent_conversation import (
+    AgentSession,
+    AgentSessionAgent,
+    AgentSessionMessage,
+)
 from app.models.ai_contact_brief import AiContactBrief
 from app.models.auth_token import AuthToken
 from app.models.base import Base
@@ -10,6 +15,9 @@ from app.models.user import User
 from app.models.voice_note_object import VoiceNoteObject
 
 __all__ = [
+    "AgentSession",
+    "AgentSessionAgent",
+    "AgentSessionMessage",
     "AiContactBrief",
     "AuthToken",
     "Base",

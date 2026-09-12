@@ -30,6 +30,11 @@ fallback when neither `SUPABASE_DB_URL` nor `DATABASE_URL` is configured.
 - `app/services/outreach_agent_hooks.py` - SDK-enforced read-only tool guard for
   the Outreach Agent (blocks non-whitelisted tool calls, logs every call).
 - `app/services/agent_telemetry.py` - optional OpenTelemetry tracing for Strands.
+- `app/services/outreach_tools.py` - owner-scoped read-only agent tools.
+- `app/services/agent_session_repository.py` - Strands session persistence on
+  the ContactLoop database (SQLite / Supabase Postgres).
+- `app/services/outreach_qa.py` - multi-turn outreach Q&A with persisted
+  teacher conversations.
 - `app/services/contact_brief_client.py` - calls the existing Contact Brief Lambda
   only after FastAPI verifies student ownership.
 

@@ -156,7 +156,7 @@ def test_outreach_plan_uses_the_local_agent_without_an_external_endpoint(
     mine = make_student(headers=headers)
     captured = {}
 
-    def fake_local_agent(candidates, owner_id=None):
+    def fake_local_agent(candidates, owner_id=None, cancel_signal=None):
         captured["candidates"] = candidates
         return {
             "items": [
@@ -201,7 +201,7 @@ def test_outreach_plan_rejects_agent_student_outside_authorized_candidates(
     )
     monkeypatch.setattr(
         "app.services.outreach_plan_client.generate_plan",
-        lambda _candidates, _owner_id=None: {
+        lambda _candidates, _owner_id=None, cancel_signal=None: {
             "items": [
                 {
                     "student_id": "99999999-9999-4999-8999-999999999999",
@@ -226,7 +226,7 @@ def test_outreach_plan_returns_empty_plan_without_invoking_agent(
 ):
     from tests.test_auth import auth_headers
 
-    def fail_if_called(_candidates, owner_id=None):
+    def fail_if_called(_candidates, owner_id=None, cancel_signal=None):
         raise AssertionError("agent must not be invoked without candidates")
 
     monkeypatch.setattr("app.api.v1.ai_briefs.invoke_outreach_agent", fail_if_called)
@@ -246,7 +246,7 @@ def test_outreach_plan_hides_upstream_failure(client, monkeypatch, make_user, ma
 
     from app.services.outreach_plan_client import OutreachAgentUnavailable
 
-    def raise_timeout(_candidates, owner_id=None):
+    def raise_timeout(_candidates, owner_id=None, cancel_signal=None):
         raise OutreachAgentUnavailable()
 
     monkeypatch.setattr("app.api.v1.ai_briefs.invoke_outreach_agent", raise_timeout)
@@ -276,8 +276,15 @@ def test_outreach_agent_timeout_raises_unavailable(monkeypatch):
         invoke_outreach_agent,
     )
 
-    def slow_generate_plan(_candidates, _owner_id=None):
-        time.sleep(0.5)
+    observed = {}
+
+    def slow_generate_plan(_candidates, _owner_id=None, cancel_signal=None):
+        observed["cancel_signal"] = cancel_signal
+        for _ in range(50):
+            time.sleep(0.05)
+            if cancel_signal is not None and cancel_signal.is_set():
+                observed["cancelled"] = True
+                return {}
 
     monkeypatch.setattr(
         "app.services.outreach_plan_client.settings",
@@ -302,3 +309,11 @@ def test_outreach_agent_timeout_raises_unavailable(monkeypatch):
 
     with pytest.raises(OutreachAgentUnavailable):
         invoke_outreach_agent([candidate], owner_id="teacher-1")
+
+    # The cancel signal must be set so the underlying agent call can abort.
+    assert observed.get("cancel_signal") is not None
+    for _ in range(60):
+        if observed.get("cancelled"):
+            break
+        time.sleep(0.05)
+    assert observed.get("cancelled") is True
