@@ -15,7 +15,7 @@ class OutreachAgentUnavailable(Exception):
     pass
 
 
-def _run_agent(candidate_payload: list[dict]) -> dict:
+def _run_agent(candidate_payload: list[dict], owner_id: object) -> dict:
     """Run the agent with a hard timeout so a hung Bedrock call cannot hold
     a request worker indefinitely."""
     timeout = getattr(
@@ -23,7 +23,7 @@ def _run_agent(candidate_payload: list[dict]) -> dict:
     )
     pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
     try:
-        future = pool.submit(generate_plan, candidate_payload)
+        future = pool.submit(generate_plan, candidate_payload, owner_id)
         try:
             return future.result(timeout=timeout)
         except TimeoutError:
@@ -35,6 +35,7 @@ def _run_agent(candidate_payload: list[dict]) -> dict:
 
 def invoke_outreach_agent(
     candidates: list[OutreachPlanCandidate],
+    owner_id: object = None,
 ) -> OutreachPlanResponse:
     if not settings.bedrock_model_id:
         raise OutreachAgentUnavailable()
@@ -44,7 +45,7 @@ def invoke_outreach_agent(
         candidate.model_dump(mode="json") for candidate in candidates
     ]
     try:
-        payload = _run_agent(candidate_payload)
+        payload = _run_agent(candidate_payload, owner_id)
         response = OutreachPlanResponse(
             generated_at=datetime.now(timezone.utc),
             source="agent",

@@ -27,6 +27,9 @@ fallback when neither `SUPABASE_DB_URL` nor `DATABASE_URL` is configured.
 - `app/services/outreach_plan.py` - builds minimized, owner-scoped Agent candidates.
 - `app/services/outreach_plan_agent.py` - runs the real local Strands Agent with
   Amazon Bedrock.
+- `app/services/outreach_agent_hooks.py` - SDK-enforced read-only tool guard for
+  the Outreach Agent (blocks non-whitelisted tool calls, logs every call).
+- `app/services/agent_telemetry.py` - optional OpenTelemetry tracing for Strands.
 - `app/services/contact_brief_client.py` - calls the existing Contact Brief Lambda
   only after FastAPI verifies student ownership.
 
@@ -61,6 +64,10 @@ setting into a `VITE_*` browser variable.
 | `AWS_REGION` | - | Bedrock region for the local Outreach Agent (required with `BEDROCK_MODEL_ID`). |
 | `BEDROCK_MODEL_ID` | - | Bedrock model for the local Outreach Agent; the Demo uses `amazon.nova-lite-v1:0`. |
 | `BEDROCK_TEMPERATURE` | `0.2` | Sampling temperature for the local Outreach Agent. |
+| `BEDROCK_GUARDRAIL_ID` | - | Optional Bedrock Guardrail applied to the Outreach Agent. |
+| `BEDROCK_GUARDRAIL_VERSION` | - | Guardrail version (used with `BEDROCK_GUARDRAIL_ID`). |
+| `STRANDS_CONSOLE_TRACING` | `false` | Print Strands agent traces to the server console. |
+| `STRANDS_OTLP_TRACING` | `false` | Export Strands agent traces via OTLP (`OTEL_EXPORTER_OTLP_ENDPOINT`). |
 | `OUTREACH_AGENT_TIMEOUT_SECONDS` | `90` | Hard timeout for one Outreach Agent run. |
 | `VOICE_NOTES_DIR` | `backend/data/voice_notes` | Directory for locally stored voice-note files. |
 | `VOICE_MAX_UPLOAD_BYTES` | `26214400` | Maximum accepted voice-note upload size (25 MB). |

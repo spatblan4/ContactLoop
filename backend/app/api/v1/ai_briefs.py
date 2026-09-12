@@ -60,7 +60,7 @@ def generate_outreach_plan(db: Session = Depends(get_db), user: User = Depends(g
     if not candidates:
         return OutreachPlanResponse(generated_at=datetime.now(timezone.utc), source="agent", items=[])
     try:
-        return invoke_outreach_agent(candidates)
+        return invoke_outreach_agent(candidates, owner_id=user.id)
     except OutreachAgentUnavailable:
         raise HTTPException(status_code=503, detail="Outreach Agent is temporarily unavailable. Try again shortly.") from None
 

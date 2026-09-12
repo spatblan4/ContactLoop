@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     aws_region: str | None = None
     bedrock_model_id: str | None = None
     bedrock_temperature: float = 0.2
+    bedrock_guardrail_id: str | None = None
+    bedrock_guardrail_version: str | None = None
+    strands_console_tracing: bool = False
+    strands_otlp_tracing: bool = False
     outreach_agent_timeout_seconds: float = 90.0
     voice_notes_dir: str | None = None
     voice_max_upload_bytes: int = 26_214_400

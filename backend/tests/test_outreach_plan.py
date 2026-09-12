@@ -126,7 +126,7 @@ def test_outreach_plan_forwards_only_authorized_candidates(
     make_student(headers=auth_headers(other_teacher["token"]))
     captured = {}
 
-    def fake_agent(candidates):
+    def fake_agent(candidates, owner_id=None):
         captured["candidates"] = candidates
         return {
             "generated_at": "2026-09-06T00:00:00Z",
@@ -156,7 +156,7 @@ def test_outreach_plan_uses_the_local_agent_without_an_external_endpoint(
     mine = make_student(headers=headers)
     captured = {}
 
-    def fake_local_agent(candidates):
+    def fake_local_agent(candidates, owner_id=None):
         captured["candidates"] = candidates
         return {
             "items": [
@@ -201,7 +201,7 @@ def test_outreach_plan_rejects_agent_student_outside_authorized_candidates(
     )
     monkeypatch.setattr(
         "app.services.outreach_plan_client.generate_plan",
-        lambda _candidates: {
+        lambda _candidates, _owner_id=None: {
             "items": [
                 {
                     "student_id": "99999999-9999-4999-8999-999999999999",
@@ -226,7 +226,7 @@ def test_outreach_plan_returns_empty_plan_without_invoking_agent(
 ):
     from tests.test_auth import auth_headers
 
-    def fail_if_called(_candidates):
+    def fail_if_called(_candidates, owner_id=None):
         raise AssertionError("agent must not be invoked without candidates")
 
     monkeypatch.setattr("app.api.v1.ai_briefs.invoke_outreach_agent", fail_if_called)
@@ -246,7 +246,7 @@ def test_outreach_plan_hides_upstream_failure(client, monkeypatch, make_user, ma
 
     from app.services.outreach_plan_client import OutreachAgentUnavailable
 
-    def raise_timeout(_candidates):
+    def raise_timeout(_candidates, owner_id=None):
         raise OutreachAgentUnavailable()
 
     monkeypatch.setattr("app.api.v1.ai_briefs.invoke_outreach_agent", raise_timeout)
@@ -263,3 +263,42 @@ def test_outreach_plan_hides_upstream_failure(client, monkeypatch, make_user, ma
     assert response.json()["detail"] == (
         "Outreach Agent is temporarily unavailable. Try again shortly."
     )
+
+
+def test_outreach_agent_timeout_raises_unavailable(monkeypatch):
+    import time
+
+    import pytest
+
+    from app.schemas.outreach_plan import OutreachPlanCandidate
+    from app.services.outreach_plan_client import (
+        OutreachAgentUnavailable,
+        invoke_outreach_agent,
+    )
+
+    def slow_generate_plan(_candidates, _owner_id=None):
+        time.sleep(0.5)
+
+    monkeypatch.setattr(
+        "app.services.outreach_plan_client.settings",
+        SimpleNamespace(
+            bedrock_model_id="test-model", outreach_agent_timeout_seconds=0.05
+        ),
+    )
+    monkeypatch.setattr(
+        "app.services.outreach_plan_client.generate_plan",
+        slow_generate_plan,
+        raising=False,
+    )
+
+    candidate = OutreachPlanCandidate(
+        student_id="11111111-1111-4111-8111-111111111111",
+        student_name="Emma Johnson",
+        last_contact_result="No Answer",
+        last_contact_at=None,
+        open_follow_up_due_at=None,
+        teacher_confirmed_notes=[],
+    )
+
+    with pytest.raises(OutreachAgentUnavailable):
+        invoke_outreach_agent([candidate], owner_id="teacher-1")

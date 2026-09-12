@@ -3,3 +3,5 @@
 #   python -m pip install -r requirements.txt -r requirements-bedrock.txt
 strands-agents>=1.0.0
 boto3>=1.35.0
+# OTLP trace export for agent observability (STRANDS_OTLP_TRACING).
+opentelemetry-exporter-otlp-proto-http
