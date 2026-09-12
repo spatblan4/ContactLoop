@@ -2,17 +2,20 @@ import re
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
-from app.models import User
+from app.core.config import settings
+from app.core.exceptions import NotFoundError
+from app.models import User, VoiceNoteObject
 from app.services.ownership import require_owned_student
 
 router = APIRouter(prefix="/voice", tags=["voice"])
 
-VOICE_DIR = Path(__file__).resolve().parents[3] / "data" / "voice_notes"
+DEFAULT_VOICE_DIR = Path(__file__).resolve().parents[3] / "data" / "voice_notes"
 OBJECT_KEY_PATTERN = re.compile(r"^[A-Za-z0-9._-]{1,200}$")
 
 TRANSCRIPT_STUB = "(Voice note saved locally. Transcription is not configured.)"
@@ -42,6 +45,25 @@ class VoiceTranscriptionStatus(BaseModel):
     transcript: str
 
 
+def voice_dir() -> Path:
+    return Path(settings.voice_notes_dir) if settings.voice_notes_dir else DEFAULT_VOICE_DIR
+
+
+def _require_owned_voice_note(
+    db: Session, object_key: str, user: User
+) -> VoiceNoteObject:
+    record = db.scalar(
+        select(VoiceNoteObject).where(
+            VoiceNoteObject.object_key == object_key,
+            VoiceNoteObject.user_id == user.id,
+            VoiceNoteObject.deleted_at.is_(None),
+        )
+    )
+    if record is None:
+        raise NotFoundError("voice note not found")
+    return record
+
+
 @router.post("/uploads", response_model=VoiceUploadResponse)
 def create_voice_upload(
     payload: VoiceUploadRequest,
@@ -50,6 +72,16 @@ def create_voice_upload(
 ):
     require_owned_student(db, payload.student_id, user.id)
     object_key = uuid.uuid4().hex
+    db.add(
+        VoiceNoteObject(
+            object_key=object_key,
+            student_id=payload.student_id,
+            user_id=user.id,
+            created_by=user.id,
+            updated_by=user.id,
+        )
+    )
+    db.commit()
     return VoiceUploadResponse(
         upload_url=f"/api/v1/voice/files/{object_key}", object_key=object_key
     )
@@ -59,13 +91,31 @@ def create_voice_upload(
 async def upload_voice_file(
     object_key: str,
     request: Request,
-    _user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     if not OBJECT_KEY_PATTERN.fullmatch(object_key) or ".." in object_key:
-        raise ValueError("invalid object key")
-    content = await request.body()
-    VOICE_DIR.mkdir(parents=True, exist_ok=True)
-    (VOICE_DIR / object_key).write_bytes(content)
+        raise HTTPException(status_code=400, detail="invalid object key")
+    _require_owned_voice_note(db, object_key, user)
+
+    max_bytes = settings.voice_max_upload_bytes
+    target_dir = voice_dir()
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target = target_dir / object_key
+    remaining = max_bytes
+    try:
+        with target.open("wb") as buffer:
+            async for chunk in request.stream():
+                remaining -= len(chunk)
+                if remaining < 0:
+                    raise HTTPException(
+                        status_code=413,
+                        detail=f"voice note exceeds the {max_bytes} byte limit",
+                    )
+                buffer.write(chunk)
+    except HTTPException:
+        target.unlink(missing_ok=True)
+        raise
     return Response(status_code=204)
 
 
@@ -76,6 +126,9 @@ def start_voice_transcription(
     user: User = Depends(get_current_user),
 ):
     require_owned_student(db, payload.student_id, user.id)
+    record = _require_owned_voice_note(db, payload.object_key, user)
+    if record.student_id != payload.student_id:
+        raise NotFoundError("voice note not found")
     return VoiceTranscriptionResponse(job_id=uuid.uuid4().hex)
 
 

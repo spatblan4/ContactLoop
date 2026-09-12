@@ -37,6 +37,8 @@ cd backend
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
+# Optional: local Strands Outreach Agent on Amazon Bedrock
+python -m pip install -r requirements-bedrock.txt
 cp .env.example .env
 python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
@@ -51,13 +53,18 @@ setting into a `VITE_*` browser variable.
 | `SUPABASE_DB_URL` | - | Full Postgres DSN (`postgresql+psycopg://...`). Highest priority. |
 | `DATABASE_URL` | - | Generic SQLAlchemy URL override. |
 | `SQLITE_PATH` | `./data/contactloop.db` | SQLite fallback database file (parent dirs created automatically). |
-| `SUPABASE_JWT_SECRET` | - | Optional Supabase JWT secret. |
 | `SUPABASE_URL` | - | Server-side Supabase project URL used for protected Function calls. |
 | `SUPABASE_SECRET_KEY` | - | Server-only key used for protected Supabase Function calls. |
 | `CONTACT_BRIEF_ENDPOINT` | - | Existing Lambda endpoint; never exposed to the browser. |
-| `AWS_REGION` | `us-east-2` | Bedrock region for the local Outreach Agent. |
+| `CONTACT_BRIEF_TIMEOUT_SECONDS` | `60` | HTTP timeout for Contact Brief Lambda calls. |
+| `SUPABASE_FUNCTION_TIMEOUT_SECONDS` | `15` | HTTP timeout for protected Supabase Function calls. |
+| `AWS_REGION` | - | Bedrock region for the local Outreach Agent (required with `BEDROCK_MODEL_ID`). |
 | `BEDROCK_MODEL_ID` | - | Bedrock model for the local Outreach Agent; the Demo uses `amazon.nova-lite-v1:0`. |
-| `CORS_ORIGINS` | `*` | Comma-separated browser origins allowed to call FastAPI. |
+| `BEDROCK_TEMPERATURE` | `0.2` | Sampling temperature for the local Outreach Agent. |
+| `OUTREACH_AGENT_TIMEOUT_SECONDS` | `90` | Hard timeout for one Outreach Agent run. |
+| `VOICE_NOTES_DIR` | `backend/data/voice_notes` | Directory for locally stored voice-note files. |
+| `VOICE_MAX_UPLOAD_BYTES` | `26214400` | Maximum accepted voice-note upload size (25 MB). |
+| `CORS_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` | Comma-separated browser origins allowed to call FastAPI. |
 | `APP_ENV` | `development` | Environment name surfaced by the meta endpoint. |
 
 AWS credentials are loaded through the normal server-side AWS credential provider

@@ -19,7 +19,7 @@ def invoke_contact_brief(payload: dict[str, Any]) -> dict[str, Any]:
             f"{endpoint.rstrip('/')}/contact-brief",
             headers={"Content-Type": "application/json"},
             json=payload,
-            timeout=60,
+            timeout=settings.contact_brief_timeout_seconds,
         )
     except httpx.HTTPError as exc:
         raise ContactBriefUnavailable("Unable to reach the Contact Brief service.") from exc

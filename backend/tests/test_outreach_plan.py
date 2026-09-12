@@ -1,7 +1,4 @@
-from datetime import datetime, timezone
 from types import SimpleNamespace
-
-import httpx
 
 from tests.test_auth import make_user
 
@@ -20,11 +17,9 @@ def test_candidate_builder_keeps_only_current_teachers_students(
     make_follow_up(mine["id"], due_at="2026-09-06T09:00:00Z", headers=auth_headers(teacher_a["token"]))
     make_event(mine["id"], headers=auth_headers(teacher_a["token"]), result="No Answer")
     db = next(get_db())
-    candidates = build_outreach_candidates(
-        db, teacher_a["user"]["id"], datetime.now(timezone.utc)
-    )
+    candidates = build_outreach_candidates(db, teacher_a["user"]["id"])
 
-    assert [item["student_id"] for item in candidates] == [mine["id"]]
+    assert [str(item.student_id) for item in candidates] == [mine["id"]]
     assert other["id"] not in str(candidates)
 
 
@@ -41,7 +36,7 @@ def test_candidate_builder_fails_closed_without_an_owner(
     make_student(headers=auth_headers(second_teacher["token"]))
 
     db = next(get_db())
-    candidates = build_outreach_candidates(db, None, datetime.now(timezone.utc))
+    candidates = build_outreach_candidates(db, None)
 
     assert candidates == []
 
@@ -95,13 +90,11 @@ def test_candidate_builder_returns_minimized_latest_confirmed_facts(
     db = next(get_db())
     candidate = next(
         item
-        for item in build_outreach_candidates(
-            db, teacher["user"]["id"], datetime.now(timezone.utc)
-        )
-        if item["student_id"] == student["id"]
+        for item in build_outreach_candidates(db, teacher["user"]["id"])
+        if str(item.student_id) == student["id"]
     )
 
-    assert set(candidate) == {
+    assert set(candidate.model_dump()) == {
         "student_id",
         "student_name",
         "last_contact_result",
@@ -109,10 +102,10 @@ def test_candidate_builder_returns_minimized_latest_confirmed_facts(
         "open_follow_up_due_at",
         "teacher_confirmed_notes",
     }
-    assert candidate["last_contact_result"] == "Connected"
-    assert candidate["last_contact_at"] == "2026-09-06T10:00:00"
-    assert candidate["open_follow_up_due_at"] == "2026-09-06T09:00:00"
-    assert candidate["teacher_confirmed_notes"] == ["Confirmed context"]
+    assert candidate.last_contact_result == "Connected"
+    assert candidate.last_contact_at.isoformat() == "2026-09-06T10:00:00"
+    assert candidate.open_follow_up_due_at.isoformat() == "2026-09-06T09:00:00"
+    assert candidate.teacher_confirmed_notes == ["Confirmed context"]
 
 
 def test_outreach_plan_requires_login(anonymous_client):
@@ -146,7 +139,7 @@ def test_outreach_plan_forwards_only_authorized_candidates(
     response = client.post("/api/v1/ai/outreach-plan/generate", headers=headers)
 
     assert response.status_code == 200
-    assert [candidate["student_id"] for candidate in captured["candidates"]] == [
+    assert [str(candidate.student_id) for candidate in captured["candidates"]] == [
         mine["id"]
     ]
     assert set(response.json()) == {"generated_at", "source", "items"}

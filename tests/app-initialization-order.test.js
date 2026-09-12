@@ -7,11 +7,11 @@ import { fileURLToPath } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const appSource = fs.readFileSync(path.join(here, '../src/app.js'), 'utf8');
 
-test('Demo outreach copy is initialized before application state uses it', () => {
-  const demoCopy = appSource.indexOf('const DEMO_OUTREACH_COPY =');
+test('Demo outreach plan is imported before application state uses it', () => {
+  const demoImport = appSource.indexOf("from './lib/demo-outreach-plan.js'");
   const applicationState = appSource.indexOf('let state = {');
 
-  assert.ok(demoCopy >= 0, 'Demo outreach copy should be declared.');
+  assert.ok(demoImport >= 0, 'Demo outreach plan module should be imported.');
   assert.ok(applicationState >= 0, 'Application state should be declared.');
-  assert.ok(demoCopy < applicationState, 'Demo outreach copy must be declared before application state.');
+  assert.ok(demoImport < applicationState, 'Demo outreach plan must be imported before application state.');
 });

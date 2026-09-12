@@ -18,11 +18,12 @@ test('FastAPI compatibility migration is additive and preserves Agent tables', (
   assert.doesNotMatch(sql, /get_contact_stats/i);
 });
 
-test('FastAPI compatibility migration adds owner, audit, and auth tables', () => {
+test('FastAPI compatibility migration adds owner, audit, auth, and voice tables', () => {
   const sql = readMigration();
 
   assert.match(sql, /create table if not exists public\.users/i);
   assert.match(sql, /create table if not exists public\.auth_tokens/i);
+  assert.match(sql, /create table if not exists public\.voice_note_objects/i);
   assert.match(sql, /add column if not exists owner_id uuid/i);
   assert.match(sql, /add column if not exists updated_at timestamptz/i);
   assert.match(sql, /add column if not exists created_by uuid/i);
@@ -37,7 +38,7 @@ test('FastAPI compatibility migration blocks direct browser access without remov
   const sql = readMigration();
 
   assert.match(sql, /alter table public\.students enable row level security/i);
-  assert.match(sql, /drop policy if exists "demo read students"/i);
-  assert.match(sql, /drop policy if exists "teachers read own students"/i);
+  assert.match(sql, /alter table public\.voice_note_objects enable row level security/i);
+  assert.match(sql, /drop policy if exists %I on %I\.%I/i);
   assert.doesNotMatch(sql, /create policy/i);
 });

@@ -1,7 +1,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
@@ -25,11 +25,31 @@ class CallStatusSyncRequest(BaseModel):
     event_id: uuid.UUID
 
 
+class StartCallResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    eventId: str
+    providerCallId: str | None = None
+
+
+class CallStatusSyncResult(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    id: str
+    status: str | None = None
+
+
+class CallStatusSyncResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    synced: list[CallStatusSyncResult] = Field(default_factory=list)
+
+
 def _calling_service_error(error: SupabaseFunctionError) -> HTTPException:
     return HTTPException(status_code=502, detail=str(error))
 
 
-@router.post("/calls")
+@router.post("/calls", response_model=StartCallResponse)
 def start_call(
     payload: StartCallRequest,
     db: Session = Depends(get_db),
@@ -42,7 +62,7 @@ def start_call(
         raise _calling_service_error(error) from error
 
 
-@router.post("/call-status-sync")
+@router.post("/call-status-sync", response_model=CallStatusSyncResponse)
 def sync_call_status(
     payload: CallStatusSyncRequest,
     db: Session = Depends(get_db),

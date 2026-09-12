@@ -9,6 +9,7 @@ COPY app ./app
 
 RUN mkdir -p /data
 ENV SQLITE_PATH=/data/contactloop.db \
+    VOICE_NOTES_DIR=/data/voice_notes \
     APP_ENV=production
 
 EXPOSE 8000

@@ -87,6 +87,22 @@ create index if not exists ai_contact_briefs_student_range_alive_idx
   on public.ai_contact_briefs(student_id, date_from, date_to, version desc)
   where deleted_at is null;
 
+-- Server-side binding of voice-note upload object keys to their owner.
+create table if not exists public.voice_note_objects (
+  id uuid primary key default gen_random_uuid(),
+  object_key varchar(64) not null unique,
+  student_id uuid not null references public.students(id) on delete cascade,
+  user_id uuid not null references public.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  created_by uuid,
+  updated_by uuid,
+  deleted_at timestamptz
+);
+
+create index if not exists voice_note_objects_user_idx on public.voice_note_objects(user_id);
+create index if not exists voice_note_objects_student_idx on public.voice_note_objects(student_id);
+
 -- Browser clients no longer access these tables directly. FastAPI owns
 -- authentication and authorization, while the existing Agent continues to use
 -- its server-side service-role credentials.
@@ -98,15 +114,7 @@ alter table public.contact_events enable row level security;
 alter table public.follow_ups enable row level security;
 alter table public.teacher_notes enable row level security;
 alter table public.ai_contact_briefs enable row level security;
-
-drop policy if exists "demo read students" on public.students;
-drop policy if exists "demo insert students" on public.students;
-drop policy if exists "demo update students" on public.students;
-drop policy if exists "demo delete students" on public.students;
-drop policy if exists "teachers read own students" on public.students;
-drop policy if exists "teachers insert own students" on public.students;
-drop policy if exists "teachers update own students" on public.students;
-drop policy if exists "teachers delete own students" on public.students;
+alter table public.voice_note_objects enable row level security;
 
 do $$
 declare
@@ -124,7 +132,8 @@ begin
         'contact_events',
         'follow_ups',
         'teacher_notes',
-        'ai_contact_briefs'
+        'ai_contact_briefs',
+        'voice_note_objects'
       )
   loop
     execute format(

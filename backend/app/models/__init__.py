@@ -7,6 +7,7 @@ from app.models.guardian import Guardian
 from app.models.student import Student
 from app.models.teacher_note import TeacherNote
 from app.models.user import User
+from app.models.voice_note_object import VoiceNoteObject
 
 __all__ = [
     "AiContactBrief",
@@ -18,4 +19,5 @@ __all__ = [
     "Student",
     "TeacherNote",
     "User",
+    "VoiceNoteObject",
 ]

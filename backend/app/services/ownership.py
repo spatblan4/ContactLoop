@@ -1,11 +1,19 @@
 import uuid
-from typing import Any
+from typing import Any, ClassVar, Protocol
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError
 from app.models import Student
+
+
+class StudentScopedModel(Protocol):
+    """Static contract for models scoped to a student (and therefore an owner)."""
+
+    id: ClassVar[Any]
+    student_id: ClassVar[Any]
+    deleted_at: ClassVar[Any]
 
 
 def require_owned_student(
@@ -25,7 +33,7 @@ def require_owned_student(
 
 def require_owned_resource(
     db: Session,
-    resource_model: type,
+    resource_model: type[StudentScopedModel],
     resource_id: uuid.UUID,
     owner_id: uuid.UUID,
     label: str,

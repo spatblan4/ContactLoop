@@ -13,7 +13,6 @@ os.environ["SUPABASE_DB_URL"] = ""
 os.environ["DATABASE_URL"] = ""
 os.environ["SQLITE_PATH"] = (TMP_DIR / "contactloop-test.db").as_posix()
 os.environ["APP_ENV"] = "test"
-os.environ.setdefault("SUPABASE_JWT_SECRET", "pytest-jwt-secret")
 
 import pytest
 from fastapi.testclient import TestClient

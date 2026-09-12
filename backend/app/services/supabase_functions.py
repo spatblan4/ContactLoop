@@ -21,7 +21,7 @@ def _invoke(function_name: str, payload: dict[str, str | None]) -> dict:
                 "Authorization": f"Bearer {settings.supabase_secret_key}",
             },
             json=payload,
-            timeout=15,
+            timeout=settings.supabase_function_timeout_seconds,
         )
     except httpx.HTTPError as exc:
         raise SupabaseFunctionError("Unable to reach the calling service.") from exc

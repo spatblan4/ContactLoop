@@ -1,8 +1,9 @@
 import uuid
 from datetime import datetime, timezone
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
@@ -31,7 +32,16 @@ class ContactBriefGenerateRequest(BaseModel):
     include_notes: bool = True
 
 
-@ai_router.post("/contact-brief/generate")
+class ContactBriefGenerateResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    provider: str | None = None
+    review_status: str | None = None
+    stats: dict[str, Any] = Field(default_factory=dict)
+    brief: dict[str, Any] = Field(default_factory=dict)
+
+
+@ai_router.post("/contact-brief/generate", response_model=ContactBriefGenerateResponse)
 def generate_contact_brief(
     payload: ContactBriefGenerateRequest,
     db: Session = Depends(get_db),
@@ -46,7 +56,7 @@ def generate_contact_brief(
 
 @ai_router.post("/outreach-plan/generate", response_model=OutreachPlanResponse)
 def generate_outreach_plan(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    candidates = build_outreach_candidates(db, user.id, datetime.now(timezone.utc))
+    candidates = build_outreach_candidates(db, user.id)
     if not candidates:
         return OutreachPlanResponse(generated_at=datetime.now(timezone.utc), source="agent", items=[])
     try:

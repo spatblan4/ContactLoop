@@ -9,11 +9,16 @@ class Settings(BaseSettings):
     sqlite_path: str = "./data/contactloop.db"
     supabase_url: str | None = None
     supabase_secret_key: str | None = None
-    supabase_jwt_secret: str | None = None
     contact_brief_endpoint: str | None = None
-    aws_region: str = "us-east-2"
+    contact_brief_timeout_seconds: int = 60
+    supabase_function_timeout_seconds: int = 15
+    aws_region: str | None = None
     bedrock_model_id: str | None = None
-    cors_origins: str = "*"
+    bedrock_temperature: float = 0.2
+    outreach_agent_timeout_seconds: float = 90.0
+    voice_notes_dir: str | None = None
+    voice_max_upload_bytes: int = 26_214_400
+    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     app_env: str = "development"
 
     @property
