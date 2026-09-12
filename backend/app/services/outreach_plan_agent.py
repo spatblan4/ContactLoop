@@ -39,6 +39,9 @@ def _build_bedrock_model() -> "Any":
             guardrail_id=settings.bedrock_guardrail_id,
             guardrail_version=settings.bedrock_guardrail_version,
             guardrail_trace="enabled",
+            guardrail_redact_output=getattr(
+                settings, "bedrock_guardrail_redact_output", False
+            ),
         )
     return BedrockModel(region_name=settings.aws_region, **bedrock_config)
 

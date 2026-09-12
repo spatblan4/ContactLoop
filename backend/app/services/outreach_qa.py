@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session as DbSession
 
 from app.core.config import settings
 from app.services.agent_session_repository import SqlAgentSessionRepository
+from app.services.outreach_mcp import ReadonlyMcpTools
 from app.services.outreach_plan import build_outreach_candidates
 from app.services.outreach_plan_agent import build_outreach_qa_agent
 
@@ -60,33 +61,36 @@ def ask_outreach_question(
     """Answer a teacher's question about the outreach plan with the QA agent.
 
     The conversation persists per teacher in the agent_sessions tables; the
-    agent restores its history through the Strands session manager.
+    agent restores its history through the Strands session manager. When an
+    MCP server is configured, its allowlisted read-only tools are attached
+    for the duration of the question.
     """
     from strands.session import RepositorySessionManager
 
     candidates = build_outreach_candidates(db, user_id)
     from app.services.outreach_tools import build_outreach_tools
 
-    tools = build_outreach_tools(
-        db, user_id, [candidate.model_dump(mode="json") for candidate in candidates]
-    )
-    repository = SqlAgentSessionRepository(db, user_id)
-    session_manager = RepositorySessionManager(
-        session_id=qa_session_id(user_id), session_repository=repository
-    )
+    with ReadonlyMcpTools() as mcp:
+        tools = build_outreach_tools(
+            db, user_id, [candidate.model_dump(mode="json") for candidate in candidates]
+        ) + [(tool, tool.tool_name) for tool in mcp.tools]
+        repository = SqlAgentSessionRepository(db, user_id)
+        session_manager = RepositorySessionManager(
+            session_id=qa_session_id(user_id), session_repository=repository
+        )
 
-    from strands.agent.conversation_manager import (
-        SummarizingConversationManager,
-    )
+        from strands.agent.conversation_manager import (
+            SummarizingConversationManager,
+        )
 
-    agent = build_outreach_qa_agent(
-        [tool for tool, _name in tools],
-        model=model,
-        owner_id=user_id,
-        session_manager=session_manager,
-        conversation_manager=SummarizingConversationManager(
-            preserve_recent_messages=10
-        ),
-    )
-    answer = _run_qa_agent(agent, question)
+        agent = build_outreach_qa_agent(
+            [tool for tool, _name in tools],
+            model=model,
+            owner_id=user_id,
+            session_manager=session_manager,
+            conversation_manager=SummarizingConversationManager(
+                preserve_recent_messages=10
+            ),
+        )
+        answer = _run_qa_agent(agent, question)
     return {"answer": answer, "candidate_count": len(candidates)}

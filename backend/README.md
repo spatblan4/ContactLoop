@@ -36,6 +36,12 @@ fallback when neither `SUPABASE_DB_URL` nor `DATABASE_URL` is configured.
 - `app/services/outreach_qa.py` - multi-turn outreach Q&A with persisted
   teacher conversations.
 - `app/services/note_drafts.py` - agent-drafted, teacher-unconfirmed notes.
+- `app/services/summary_pipeline.py` - Strands Graph draft -> judge -> finalize
+  quality pipeline for note drafts.
+- `app/services/outreach_coordinator.py` - Teacher Assistant coordinator that
+  combines the planner, QA and summarizer agents as tools.
+- `app/services/outreach_mcp.py` - optional allowlisted read-only MCP tools
+  for the outreach QA agent.
 - `app/services/voice_transcription.py` - optional Amazon Transcribe pipeline
   for voice notes.
 - `app/services/contact_brief_client.py` - calls the existing Contact Brief Lambda
@@ -74,6 +80,10 @@ setting into a `VITE_*` browser variable.
 | `BEDROCK_TEMPERATURE` | `0.2` | Sampling temperature for the local Outreach Agent. |
 | `BEDROCK_GUARDRAIL_ID` | - | Optional Bedrock Guardrail applied to the Outreach Agent. |
 | `BEDROCK_GUARDRAIL_VERSION` | - | Guardrail version (used with `BEDROCK_GUARDRAIL_ID`). |
+| `BEDROCK_GUARDRAIL_REDACT_OUTPUT` | `false` | Redact guarded content (student PII) from agent replies. |
+| `CALL_SUMMARY_QUALITY_PIPELINE` | `false` | Run call-summary drafts through the draft -> judge -> finalize Graph pipeline. |
+| `MCP_SERVER_URL` | - | Optional read-only MCP server consumed by the outreach QA agent. |
+| `MCP_ALLOWED_TOOLS` | - | Comma-separated allowlist of MCP tool names (required with `MCP_SERVER_URL`). |
 | `STRANDS_CONSOLE_TRACING` | `false` | Print Strands agent traces to the server console. |
 | `STRANDS_OTLP_TRACING` | `false` | Export Strands agent traces via OTLP (`OTEL_EXPORTER_OTLP_ENDPOINT`). |
 | `OUTREACH_AGENT_TIMEOUT_SECONDS` | `90` | Hard timeout for one Outreach Agent run. |

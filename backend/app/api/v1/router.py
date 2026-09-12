@@ -10,6 +10,7 @@ from app.api.v1 import (
     imports,
     outreach_conversations,
     students,
+    teacher_assistant,
     teacher_notes,
     telephony,
     voice,
@@ -43,3 +44,4 @@ api_v1_router.include_router(imports.router)
 api_v1_router.include_router(voice.router)
 api_v1_router.include_router(telephony.router)
 api_v1_router.include_router(outreach_conversations.router)
+api_v1_router.include_router(teacher_assistant.router)

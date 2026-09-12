@@ -49,7 +49,7 @@
 <header class="doc">
   <div class="brand"><div class="brand-mark">C</div><div class="brand-name">Contact<span>Loop</span></div></div>
   <h1>Strands Agents · Tracks</h1>
-  <p class="sub">来源：<a href="strands-agent-roadmap.html">strands-agent-roadmap.html</a> · 更新：2026-09-13（Phase 1 评审） · 依赖：<code>strands-agents &gt;= 1.0.0</code>（<code>backend/requirements-bedrock.txt</code>）</p>
+  <p class="sub">来源：<a href="strands-agent-roadmap.html">strands-agent-roadmap.html</a> · 更新：2026-09-13（Phase 2 完成） · 依赖：<code>strands-agents &gt;= 1.0.0</code>（<code>backend/requirements-bedrock.txt</code>）</p>
   <p class="sub">用途：按阶段追踪 Strands Agent 深挖的 <b>new features <span style="color:var(--green)">(新能力)</span></b> 与 <b>fixes <span style="color:var(--coral)">(修复)</span></b>，作为后续任务引用现状/进度与已落地决策的单一入口。</p>
 </header>
 
@@ -88,10 +88,10 @@
     </div>
   </div>
   <p class="sidenote"><b>遗留 / 建议（来自 Phase 0 代码评审，供后续任务）：</b>
-    (1) 超时用 <code>cancel_futures=True</code> 无法中断已运行的 Bedrock 线程，建议传 <code>cancel_signal=threading.Event</code> 进 <code>agent()</code>；
+    (1) 超时用 <code>cancel_futures=True</code> 无法中断已运行的 Bedrock 线程 → <b>已解决</b>（Phase 1 传入 <code>cancel_signal=threading.Event</code>）；
     (2) 「shadow 观察」目标未完全落地：当前配置即为全阻断（<code>guardrail_trace="enabled"</code>），未接入 <code>ApplyGuardrail</code> 仅记录不阻断的 shadow 模式，误杀率需靠拦截日志观察（SDK 1.55.1 流式路径已解析 guardrail trace）；
-    (3) <code>guardrail_redact_output</code>（默认 False）未暴露，学生 PII 输出脱敏待补；
-    (4) 守卫对 Phase 2 的 MCP / <code>context_manager="agentic"</code> 注入工具会误拦，需改全阻断为分来源策略；
+    (3) <code>guardrail_redact_output</code>（默认 False）未暴露 → <b>已解决</b>（Phase 2 暴露为 <code>BEDROCK_GUARDRAIL_REDACT_OUTPUT</code>）；
+    (4) 守卫对 MCP / <code>context_manager="agentic"</code> 注入工具会误拦 → <b>已解决</b>（Phase 2 改为分来源放行策略）；
     (5) <code>test_outreach_agent_loop.py</code> 依赖 strands 安装，未装 <code>requirements-bedrock.txt</code> 时整组 skip，CI 需装依赖才能真验证。
   </p>
 </div>
@@ -134,21 +134,25 @@
 <div class="phase">
   <div class="phase-head">
     <div class="phase-title">Phase 2 — Agent 能力扩展</div>
-    <span class="tag wip">WIP</span>
+    <span class="tag done">Done</span>
   </div>
   <div class="grid2">
     <div class="mini feat">
-      <h4>New features（已落地）</h4>
+      <h4>New features</h4>
       <ul>
         <li>owner-scoped 只读工具：<code>outreach_tools.py</code> 提供 <code>get_contact_history / get_open_follow_ups / get_teacher_notes</code>，每工具走 <code>require_owned_*</code>，返回脱敏最小化数据；QA agent 守卫白名单同步扩展；</li>
         <li>通话摘要草稿：<code>POST /ai/call-summary/generate</code>（Connected 事件 → agent 草稿 → <code>teacher_confirmed=false</code>、<code>source='ai'</code> 的 teacher_note）；</li>
-        <li>语音笔记真链路：<code>voice_transcription.py</code>（Amazon Transcribe 可选 + 后台线程 + 草稿落库，未配置时保留存根行为）；teacher_note source 枚举扩展 <code>'ai'</code>。</li>
+        <li>语音笔记真链路：<code>voice_transcription.py</code>（Amazon Transcribe 可选 + 后台线程 + 草稿落库，未配置时保留存根行为）；teacher_note source 枚举扩展 <code>'ai'</code>；</li>
+        <li>Agents-as-Tools 协调者：<code>POST /teacher-assistant/ask</code>（<code>outreach_coordinator.py</code>）把 outreach planner / 问答器 / 摘要器组合为 <code>agent.as_tool()</code>，协调者守卫只放行三个专家工具，会话按教师持久化；</li>
+        <li>Graph 质量流水线：<code>summary_pipeline.py</code> 用 Strands Graph 实现 草稿 → LLM-as-judge 自审 → 终稿 的条件环（judge 判 <code>APPROVED</code> 或 <code>REVISE: </code>），<code>CALL_SUMMARY_QUALITY_PIPELINE=true</code> 时替代单次调用，无终稿一律 fail-closed；</li>
+        <li>MCP 只读面：<code>outreach_mcp.py</code>（<code>ReadonlyMcpTools</code>）从可选 MCP server 加载 <code>MCP_ALLOWED_TOOLS</code> 白名单内的只读工具接入 QA agent，加载失败降级为无 MCP 工具；</li>
+        <li>Bedrock Guardrails 输出脱敏：<code>BEDROCK_GUARDRAIL_REDACT_OUTPUT</code> 透传到 <code>BedrockModel</code>（Phase 0 遗留 (3)）。</li>
       </ul>
     </div>
     <div class="mini fix">
       <h4>Fixes</h4>
       <ul>
-        <li>Phase 0 遗留 (3) 部分缓解：guardrail 输出脱敏项仍未暴露，待后续；</li>
+        <li>Phase 0 遗留 (4) 解决：守卫改为分来源放行策略——显式白名单 + <code>allowed_prefixes</code>（外部只读工具前缀）+ SDK 注入工具（<code>retrieve_context</code>），MCP / agentic context manager 不再被误拦；</li>
         <li>语音转写后台线程只传值对象（避免 ORM 跨会话 detached 访问）；</li>
         <li>前端 <code>teacherNoteSourceLabel</code> 识别 <code>ai</code> 来源并标注 "needs review"；</li>
         <li><b>Phase 1 评审连带修复（本批文件）：</b>
@@ -161,7 +165,12 @@
       </ul>
     </div>
   </div>
-  <p class="sidenote"><b>待办（Phase 2 剩余）：</b>Agents-as-Tools 协调者、Swarm/Graph 草稿→judge→终稿流水线、MCP 只读面、guard 分来源放行策略（遗留 (4)）。</p>
+  <p class="sidenote">测试：owner 工具隔离（含越权 404）、call-summary 草稿 + 越权 + 流水线开关与 fail-closed、语音转写归属/上限、协调者路由/守卫拦截/端点 503/401、Graph 流水线 直批/修订/不批/含糊裁决、MCP 白名单解析/门控/降级/QA 接线。全部 FakeModel 驱动，不触网。</p>
+  <p class="sidenote"><b>已知限制（暂接受）：</b>
+    (1) Graph 流水线节点内的模型调用无 <code>cancel_signal</code>，靠图级节点执行上限兜底；
+    (2) MCP 工具加载发生在每次 QA 请求内（无缓存），server 不可达时每问一次都会重试一次连接（fail-safe 降级）；
+    (3) 协调者的 planner 专家在 as_tool 形态下产出文本计划（无 structured output 校验），正式 outreach 计划仍走原端点。
+  </p>
 </div>
 
 <!-- ============ Phase 3 ============ -->

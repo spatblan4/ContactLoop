@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     strands_console_tracing: bool = False
     strands_otlp_tracing: bool = False
     outreach_agent_timeout_seconds: float = 90.0
+    bedrock_guardrail_redact_output: bool = False
+    call_summary_quality_pipeline: bool = False
+    mcp_server_url: str | None = None
+    mcp_allowed_tools: str | None = None
     voice_notes_dir: str | None = None
     voice_max_upload_bytes: int = 26_214_400
     voice_transcribe_enabled: bool = False

@@ -190,3 +190,60 @@ def test_read_only_guard_allows_only_explicit_whitelist():
     blocked = _BlockedEvent()
     guard._before_tool_call(blocked)
     assert "not allowed" in blocked.cancel_tool
+
+
+def _guard_event(tool_name):
+    class _Event:
+        tool_use = {"name": tool_name}
+        cancel_tool = None
+
+    return _Event()
+
+
+def test_read_only_guard_allows_sdk_internal_tools():
+    guard = ReadOnlyToolGuard(["get_outreach_candidates"])
+
+    internal = _guard_event("retrieve_context")
+    guard._before_tool_call(internal)
+    assert internal.cancel_tool is None
+
+    unknown_internal = _guard_event("some_other_injected_tool")
+    guard._before_tool_call(unknown_internal)
+    assert "not allowed" in unknown_internal.cancel_tool
+
+
+def test_read_only_guard_allows_configured_prefixes():
+    guard = ReadOnlyToolGuard(
+        ["get_outreach_candidates"], allowed_prefixes=("mcp_school_",)
+    )
+
+    prefixed = _guard_event("mcp_school_get_events")
+    guard._before_tool_call(prefixed)
+    assert prefixed.cancel_tool is None
+
+    other_prefix = _guard_event("mcp_calendar_get_events")
+    guard._before_tool_call(other_prefix)
+    assert "not allowed" in other_prefix.cancel_tool
+
+
+def test_bedrock_model_passes_guardrail_redact_output(monkeypatch):
+    from types import SimpleNamespace
+
+    from app.services import outreach_plan_agent
+
+    monkeypatch.setattr(
+        outreach_plan_agent,
+        "settings",
+        SimpleNamespace(
+            bedrock_model_id="test-model",
+            bedrock_temperature=0.1,
+            bedrock_guardrail_id="test-guardrail",
+            bedrock_guardrail_version="1",
+            bedrock_guardrail_redact_output=True,
+            aws_region="us-east-2",
+        ),
+    )
+
+    model = outreach_plan_agent._build_bedrock_model()
+    assert model.config["guardrail_redact_output"] is True
+    assert model.config["guardrail_id"] == "test-guardrail"
