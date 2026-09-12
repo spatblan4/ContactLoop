@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ContactLoop · Strands Agents Tracks</title>
+<style>
+  :root { --ink:#1d2821; --muted:#6b7a6e; --paper:#f4f6f1; --card:#ffffff; --line:#e0e5dd; --coral:#ef684f; --green:#488d61; --amber:#b8860b; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink); font:15px/1.7 "DM Sans","Segoe UI","Microsoft YaHei",sans-serif; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1000px; margin:0 auto; padding:48px 28px 80px; }
+  header.doc { border-bottom:1px solid var(--line); padding-bottom:22px; margin-bottom:34px; }
+  .brand { display:flex; align-items:center; gap:10px; }
+  .brand-mark { width:34px; height:34px; border-radius:10px; background:var(--coral); color:#fff; display:grid; place-items:center; font-weight:800; font-size:18px; }
+  .brand-name { font-weight:800; letter-spacing:-.02em; font-size:19px; }
+  .brand-name span { color:var(--coral); }
+  h1 { font-size:30px; letter-spacing:-.02em; margin:18px 0 6px; }
+  .sub { color:var(--muted); font-size:13.5px; }
+  h2 { font-size:20px; margin:38px 0 12px; letter-spacing:-.01em; display:flex; align-items:center; gap:10px; }
+  h2::before { content:""; width:5px; height:20px; border-radius:3px; background:var(--coral); flex:none; }
+  h3 { font-size:15.5px; margin:22px 0 8px; }
+  p { margin:8px 0; }
+  code { font:12.5px/1.5 "Cascadia Code",Consolas,monospace; background:#eef1ea; border:1px solid var(--line); border-radius:5px; padding:1px 6px; }
+  table { width:100%; border-collapse:collapse; background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; margin:12px 0; font-size:13.5px; }
+  th { text-align:left; background:#eef1ea; padding:9px 14px; font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+  td { padding:9px 14px; border-top:1px solid var(--line); vertical-align:top; }
+  ul, ol { margin:8px 0 8px 22px; padding:0; }
+  li { margin:4px 0; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px 22px; margin:14px 0; }
+  .phase { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px 24px; margin:18px 0; }
+  .phase-head { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; border-bottom:1px solid var(--line); padding-bottom:12px; margin-bottom:14px; }
+  .phase-title { font-size:18px; font-weight:800; letter-spacing:-.01em; }
+  .tag { display:inline-block; font-size:11px; font-weight:700; border-radius:999px; padding:2px 10px; }
+  .tag.done { background:#e3efe7; color:var(--green); }
+  .tag.wip { background:#fdf1de; color:var(--amber); }
+  .tag.open { background:#fdeae5; color:var(--coral); }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .mini h4 { margin:8px 0 6px; font-size:13px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
+  .mini.feat h4 { color:var(--green); }
+  .mini.fix h4 { color:var(--coral); }
+  .sidenote { font-size:12.5px; color:var(--muted); margin-top:8px; }
+  footer { margin-top:56px; padding-top:16px; border-top:1px solid var(--line); color:var(--muted); font-size:12px; }
+  @media (max-width:760px){ .grid2{grid-template-columns:1fr} h1{font-size:24px} }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header class="doc">
+  <div class="brand"><div class="brand-mark">C</div><div class="brand-name">Contact<span>Loop</span></div></div>
+  <h1>Strands Agents · Tracks</h1>
+  <p class="sub">来源：<a href="strands-agent-roadmap.html">strands-agent-roadmap.html</a> · 更新：2026-09-12 · 依赖：<code>strands-agents &gt;= 1.0.0</code>（<code>backend/requirements-bedrock.txt</code>）</p>
+  <p class="sub">用途：按阶段追踪 Strands Agent 深挖的 <b>new features <span style="color:var(--green)">(新能力)</span></b> 与 <b>fixes <span style="color:var(--coral)">(修复)</span></b>，作为后续任务引用现状/进度与已落地决策的单一入口。</p>
+</header>
+
+<h2>状态图例</h2>
+<table>
+  <tr><th>状态</th><th>含义</th></tr>
+  <tr><td><span class="tag done">Done</span></td><td>已实现并提交，含冒烟/单测验证</td></tr>
+  <tr><td><span class="tag wip">WIP</span></td><td>进行中或部分落地</td></tr>
+  <tr><td><span class="tag open">Open</span></td><td>规划中，未开始</td></tr>
+</table>
+
+<!-- ============ Phase 0 ============ -->
+<div class="phase">
+  <div class="phase-head">
+    <div class="phase-title">Phase 0 — 现有 Agent 产品化</div>
+    <span class="tag done">Done</span>
+  </div>
+  <div class="grid2">
+    <div class="mini feat">
+      <h4>New features</h4>
+      <ul>
+        <li>Hooks 只读守卫：<code>outreach_agent_hooks.py</code>（<code>ReadOnlyToolGuard</code>，<code>BeforeToolCallEvent.cancel_tool</code> + <code>AfterToolCallEvent</code> 记录），使「agent 永不写 follow-up」成为代码级保证；</li>
+        <li>Bedrock Guardrails：<code>BedrockModel(guardrail_id, guardrail_version, guardrail_trace)</code> 接入，配置见 <code>config.py</code> / <code>.env.example</code>；</li>
+        <li>OTel 追踪：<code>agent_telemetry.py</code>（<code>StrandsTelemetry</code> 控制台 / OTLP 开关）+ <code>Agent(trace_attributes)</code> 携带 <code>owner_id</code>；</li>
+        <li>测试用 FakeModel：<code>tests/fake_strands_model.py</code> 实现 <code>Model</code> 接口，驱动真实 agent loop；</li>
+        <li>新测试 <code>tests/test_outreach_agent_loop.py</code>：读守卫拦截 / 白名单放行 / 生产接线 / 守卫单元，由 FakeModel 驱动真实 loop；另有 agent 超时用例（<code>test_outreach_plan.py</code>）。</li>
+      </ul>
+    </div>
+    <div class="mini fix">
+      <h4>Fixes</h4>
+      <ul>
+        <li>修复 agent 被阻塞 / 超时时错误语义，未构建候选时快速返回；</li>
+        <li>agent 输出仍在 <code>outreach_plan_client.invoke_outreach_agent</code> 内按授权候选集二次校验（含 <code>logger.error</code> 告警）；</li>
+        <li>确认 import 卫生：<code>outreach_plan_agent</code> / <code>agent_telemetry</code> / <code>outreach_agent_hooks</code> 顶层不引 strands，缺依赖时不破坏 <code>ai_briefs.py</code> 导入。</li>
+      </ul>
+    </div>
+  </div>
+  <p class="sidenote"><b>遗留 / 建议（来自 Phase 0 代码评审，供后续任务）：</b>
+    (1) 超时用 <code>cancel_futures=True</code> 无法中断已运行的 Bedrock 线程，建议传 <code>cancel_signal=threading.Event</code> 进 <code>agent()</code>；
+    (2) 「shadow 观察」目标未完全落地：当前配置即为全阻断（<code>guardrail_trace="enabled"</code>），未接入 <code>ApplyGuardrail</code> 仅记录不阻断的 shadow 模式，误杀率需靠拦截日志观察（SDK 1.55.1 流式路径已解析 guardrail trace）；
+    (3) <code>guardrail_redact_output</code>（默认 False）未暴露，学生 PII 输出脱敏待补；
+    (4) 守卫对 Phase 2 的 MCP / <code>context_manager="agentic"</code> 注入工具会误拦，需改全阻断为分来源策略；
+    (5) <code>test_outreach_agent_loop.py</code> 依赖 strands 安装，未装 <code>requirements-bedrock.txt</code> 时整组 skip，CI 需装依赖才能真验证。
+  </p>
+</div>
+
+<!-- ============ Phase 1 ============ -->
+<div class="phase">
+  <div class="phase-head">
+    <div class="phase-title">Phase 1 — 会话与多轮交互</div>
+    <span class="tag open">Open</span>
+  </div>
+  <div class="grid2">
+    <div class="mini feat">
+      <h4>New features</h4>
+      <ul>
+        <li>多轮 Outreach 问答：teacher 追问 plan 详情；<code>SummarizingConversationManager</code> 控上下文；</li>
+        <li>SessionManager 自定义存储：实现 Strands storage 接口落 SQLAlchemy 双库（SQLite / Supabase Postgres），按 <code>teacher_id</code> 隔离；AWS 可切 DynamoDB；</li>
+        <li>SSE 流式：<code>callback_handler</code> + FastAPI <code>StreamingResponse</code>，消除 90 秒白屏。</li>
+      </ul>
+    </div>
+    <div class="mini fix">
+      <h4>Fixes</h4>
+      <ul>
+        <li>（无既定修复项，落地时补充）</li>
+      </ul>
+    </div>
+  </div>
+  <p class="sidenote">依赖：承接 Phase 0 遗留 (1)（超时可取消）与 (2)（可观测落地），构建多轮会话先保证单次调用可杀停。</p>
+</div>
+
+<!-- ============ Phase 2 ============ -->
+<div class="phase">
+  <div class="phase-head">
+    <div class="phase-title">Phase 2 — Agent 能力扩展</div>
+    <span class="tag open">Open</span>
+  </div>
+  <div class="grid2">
+    <div class="mini feat">
+      <h4>New features</h4>
+      <ul>
+        <li>owner-scoped 只读工具：<code>get_contact_history</code> / <code>get_open_follow_ups</code> / <code>get_teacher_notes</code>，全走 <code>require_owned_*</code>；</li>
+        <li>语音笔记真链路：boto3 + Amazon Transcribe 替换存根 → <code>teacher_confirmed=false</code> 草稿；</li>
+        <li>通话摘要：Connected 事件后生成 contact-event note 草稿；</li>
+        <li>多 Agent：Agents-as-Tools 协调者、Swarm/Graph 草稿→judge→终稿、MCP 只读面。</li>
+      </ul>
+    </div>
+    <div class="mini fix">
+      <h4>Fixes</h4>
+      <ul>
+        <li>Phase 0 遗留 (4)：守卫改为按工具来源/前缀策略，放行 SDK 注入工具（context-management / MCP）而只对业务危险工具拒绝；</li>
+        <li>新工具一律并入守卫白名单并补 loop 测试。</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Phase 3 ============ -->
+<div class="phase">
+  <div class="phase-head">
+    <div class="phase-title">Phase 3 — 评测体系（strands-agents-evals）</div>
+    <span class="tag open">Open</span>
+  </div>
+  <div class="grid2">
+    <div class="mini feat">
+      <h4>New features</h4>
+      <ul>
+        <li>固定学生 fixture 的 <code>Case</code> / <code>Experiment</code>；</li>
+        <li>CorrectnessEvaluator / InstructionFollowingEvaluator（priority 规则、是否泄露电话号码）；</li>
+        <li>轨迹评测：工具调用序列合法性；</li>
+        <li>混沌测试：注入工具超时/网络错误验证 fail-closed；</li>
+        <li>评测进 CI，nova-lite 控成本。</li>
+      </ul>
+    </div>
+    <div class="mini fix">
+      <h4>Fixes</h4>
+      <ul>
+        <li>Phase 0 遗留 (5)：CI 固定安装 <code>requirements-bedrock.txt</code>，确保 loop 测试被真正执行。</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Phase 4 ============ -->
+<div class="phase">
+  <div class="phase-head">
+    <div class="phase-title">Phase 4 — AWS 深度集成（可选）</div>
+    <span class="tag open">Open</span>
+  </div>
+  <div class="grid2">
+    <div class="mini feat">
+      <h4>New features</h4>
+      <ul>
+        <li>AgentCore Runtime 部署形态；</li>
+        <li>A2A 协议对接学校侧系统；</li>
+        <li>多 Provider：LiteLLM / Anthropic / Ollama，本地开发免 AWS 依赖。</li>
+      </ul>
+    </div>
+    <div class="mini fix">
+      <h4>Fixes</h4>
+      <ul>
+        <li>（无既定修复项，落地时补充）</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<h2>安全红线（贯穿所有阶段）</h2>
+<div class="card">
+  <ul>
+    <li>工具一律 <b>owner-scoped 只读</b>：入口走 <code>require_owned_*</code>；</li>
+    <li><b>教师确认制</b>：agent 只产草稿（<code>pending</code> / <code>teacher_confirmed=false</code>），写入需教师确认；</li>
+    <li><b>fail-closed</b>：超时 / 越权学生 / 结构异常一律拒绝（503），输出按授权候选集二次校验；</li>
+    <li><b>候选上下文最小化</b>：不含电话号码、provider ID、token、凭据；</li>
+    <li><b>测试不触网</b>：单测全部用 FakeModel / monkeypatch；</li>
+    <li><b>不可动项</b>：Contact Brief Lambda（外部已部署）、Twilio 拨号（Edge Function 独占）。</li>
+  </ul>
+</div>
+
+<footer>ContactLoop · Strands Agents Tracks · 2026-09-12 · 配套 <a href="strands-agent-roadmap.html">Roadmap</a></footer>
+</div>
+</body>
+</html>
