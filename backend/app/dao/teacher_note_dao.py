@@ -5,7 +5,7 @@ from sqlalchemy import select
 from app.dao.base import BaseDAO
 from app.models import Student, TeacherNote
 
-TEACHER_NOTE_SOURCES = ("typed", "voice")
+TEACHER_NOTE_SOURCES = ("typed", "voice", "ai")
 
 
 class TeacherNoteDAO(BaseDAO):

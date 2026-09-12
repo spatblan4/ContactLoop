@@ -35,6 +35,9 @@ fallback when neither `SUPABASE_DB_URL` nor `DATABASE_URL` is configured.
   the ContactLoop database (SQLite / Supabase Postgres).
 - `app/services/outreach_qa.py` - multi-turn outreach Q&A with persisted
   teacher conversations.
+- `app/services/note_drafts.py` - agent-drafted, teacher-unconfirmed notes.
+- `app/services/voice_transcription.py` - optional Amazon Transcribe pipeline
+  for voice notes.
 - `app/services/contact_brief_client.py` - calls the existing Contact Brief Lambda
   only after FastAPI verifies student ownership.
 
@@ -76,6 +79,9 @@ setting into a `VITE_*` browser variable.
 | `OUTREACH_AGENT_TIMEOUT_SECONDS` | `90` | Hard timeout for one Outreach Agent run. |
 | `VOICE_NOTES_DIR` | `backend/data/voice_notes` | Directory for locally stored voice-note files. |
 | `VOICE_MAX_UPLOAD_BYTES` | `26214400` | Maximum accepted voice-note upload size (25 MB). |
+| `VOICE_TRANSCRIBE_ENABLED` | `false` | Enable Amazon Transcribe for voice notes (requires AWS credentials). |
+| `VOICE_TRANSCRIBE_BUCKET` | - | S3 bucket used for Transcribe jobs (required when transcription is enabled). |
+| `VOICE_TRANSCRIBE_LANGUAGE` | `en-US` | Language code for Amazon Transcribe. |
 | `CORS_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` | Comma-separated browser origins allowed to call FastAPI. |
 | `APP_ENV` | `development` | Environment name surfaced by the meta endpoint. |
 

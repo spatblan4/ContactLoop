@@ -49,7 +49,7 @@
 <header class="doc">
   <div class="brand"><div class="brand-mark">C</div><div class="brand-name">Contact<span>Loop</span></div></div>
   <h1>Strands Agents · Tracks</h1>
-  <p class="sub">来源：<a href="strands-agent-roadmap.html">strands-agent-roadmap.html</a> · 更新：2026-09-12 · 依赖：<code>strands-agents &gt;= 1.0.0</code>（<code>backend/requirements-bedrock.txt</code>）</p>
+  <p class="sub">来源：<a href="strands-agent-roadmap.html">strands-agent-roadmap.html</a> · 更新：2026-09-13（Phase 1 评审） · 依赖：<code>strands-agents &gt;= 1.0.0</code>（<code>backend/requirements-bedrock.txt</code>）</p>
   <p class="sub">用途：按阶段追踪 Strands Agent 深挖的 <b>new features <span style="color:var(--green)">(新能力)</span></b> 与 <b>fixes <span style="color:var(--coral)">(修复)</span></b>，作为后续任务引用现状/进度与已落地决策的单一入口。</p>
 </header>
 
@@ -100,51 +100,68 @@
 <div class="phase">
   <div class="phase-head">
     <div class="phase-title">Phase 1 — 会话与多轮交互</div>
-    <span class="tag open">Open</span>
+    <span class="tag done">Done</span>
   </div>
   <div class="grid2">
     <div class="mini feat">
       <h4>New features</h4>
       <ul>
-        <li>多轮 Outreach 问答：teacher 追问 plan 详情；<code>SummarizingConversationManager</code> 控上下文；</li>
-        <li>SessionManager 自定义存储：实现 Strands storage 接口落 SQLAlchemy 双库（SQLite / Supabase Postgres），按 <code>teacher_id</code> 隔离；AWS 可切 DynamoDB；</li>
-        <li>SSE 流式：<code>callback_handler</code> + FastAPI <code>StreamingResponse</code>，消除 90 秒白屏。</li>
+        <li>多轮 Outreach 问答：<code>POST /outreach-plan/ask</code>（QA agent 基于授权候选事实作答），<code>SummarizingConversationManager</code> 控上下文；</li>
+        <li>SessionManager 持久化：<code>agent_sessions / agent_session_agents / agent_session_messages</code> 三表 + <code>SqlAgentSessionRepository</code> 实现 Strands <code>SessionRepository</code> 接口（SQLite / Supabase Postgres 双方言），按 <code>teacher_id</code> 隔离，会话恢复经 <code>RepositorySessionManager</code>；</li>
+        <li>会话读取 / 重置：<code>GET / DELETE /outreach-plan/conversation</code>（软删 tombstone + 子行清理）；</li>
+        <li>SSE 流式生成：<code>POST /ai/outreach-plan/generate/stream</code>（candidates / message / plan / error 事件，复用授权集校验与超时取消），前端 <code>generateOutreachPlanStream</code> 消费并显示进度。</li>
       </ul>
     </div>
     <div class="mini fix">
       <h4>Fixes</h4>
       <ul>
-        <li>（无既定修复项，落地时补充）</li>
+        <li>Phase 0 遗留 (1)：超时改为可取消——<code>cancel_signal=threading.Event</code> 全链路传入 <code>agent()</code>，超时后 set，agent loop 在下一 checkpoint 中止在途模型调用；</li>
+        <li>SSE 路径的越权学生检查与客户端路径共用 <code>unauthorized_students_present</code>（兼容 dict / pydantic 两种 item 形态）；</li>
+        <li>端点异常补日志（此前被静默折叠为 error 事件）；</li>
+        <li><b>Phase 1 代码评审修复：</b>QA 工具入参改传 <code>model_dump(mode="json")</code> 化候选——原样传 pydantic 模型会在真实 BedrockModel 序列化工具输出时报错（FakeModel 测试路径无法暴露）。</li>
       </ul>
     </div>
   </div>
-  <p class="sidenote">依赖：承接 Phase 0 遗留 (1)（超时可取消）与 (2)（可观测落地），构建多轮会话先保证单次调用可杀停。</p>
+  <p class="sidenote">测试：问答持久化与恢复、教师间隔离、重置、503/401；SSE plan/error 两分支；前端 SSE 解析 3 例。全部走 FakeModel，不触网。</p>
+  <p class="sidenote"><b>评审遗留（已知限制，暂接受）：</b>
+    (1) 同一教师并发 <code>/ask</code> 可能撞 <code>session_id</code> 唯一约束 → 503（单教师场景可接受，后续可捕获 IntegrityError 降级）；
+    (2) <code>AgentSessionMessage.preview()</code> 尚无调用方；
+    (3) 会话查询按 <code>session_id</code>（由 <code>qa_session_id(user_id)</code> 派生）隔离而非 join 校验 <code>user_id</code>，语义等价但依赖派生规则。
+  </p>
 </div>
 
 <!-- ============ Phase 2 ============ -->
 <div class="phase">
   <div class="phase-head">
     <div class="phase-title">Phase 2 — Agent 能力扩展</div>
-    <span class="tag open">Open</span>
+    <span class="tag wip">WIP</span>
   </div>
   <div class="grid2">
     <div class="mini feat">
-      <h4>New features</h4>
+      <h4>New features（已落地）</h4>
       <ul>
-        <li>owner-scoped 只读工具：<code>get_contact_history</code> / <code>get_open_follow_ups</code> / <code>get_teacher_notes</code>，全走 <code>require_owned_*</code>；</li>
-        <li>语音笔记真链路：boto3 + Amazon Transcribe 替换存根 → <code>teacher_confirmed=false</code> 草稿；</li>
-        <li>通话摘要：Connected 事件后生成 contact-event note 草稿；</li>
-        <li>多 Agent：Agents-as-Tools 协调者、Swarm/Graph 草稿→judge→终稿、MCP 只读面。</li>
+        <li>owner-scoped 只读工具：<code>outreach_tools.py</code> 提供 <code>get_contact_history / get_open_follow_ups / get_teacher_notes</code>，每工具走 <code>require_owned_*</code>，返回脱敏最小化数据；QA agent 守卫白名单同步扩展；</li>
+        <li>通话摘要草稿：<code>POST /ai/call-summary/generate</code>（Connected 事件 → agent 草稿 → <code>teacher_confirmed=false</code>、<code>source='ai'</code> 的 teacher_note）；</li>
+        <li>语音笔记真链路：<code>voice_transcription.py</code>（Amazon Transcribe 可选 + 后台线程 + 草稿落库，未配置时保留存根行为）；teacher_note source 枚举扩展 <code>'ai'</code>。</li>
       </ul>
     </div>
     <div class="mini fix">
       <h4>Fixes</h4>
       <ul>
-        <li>Phase 0 遗留 (4)：守卫改为按工具来源/前缀策略，放行 SDK 注入工具（context-management / MCP）而只对业务危险工具拒绝；</li>
-        <li>新工具一律并入守卫白名单并补 loop 测试。</li>
+        <li>Phase 0 遗留 (3) 部分缓解：guardrail 输出脱敏项仍未暴露，待后续；</li>
+        <li>语音转写后台线程只传值对象（避免 ORM 跨会话 detached 访问）；</li>
+        <li>前端 <code>teacherNoteSourceLabel</code> 识别 <code>ai</code> 来源并标注 "needs review"；</li>
+        <li><b>Phase 1 评审连带修复（本批文件）：</b>
+          <code>transcribe_enabled()</code> 补验 <code>voice_transcribe_bucket</code>（原启用但缺桶时后台任务直接失败）；
+          Transcribe 轮询加 300s 上限（原 <code>while True</code> 无界）；
+          转写任务记录 <code>user_id</code>，<code>GET /voice/transcriptions/{job_id}</code> 校验归属（原任意登录用户可查询任意任务）；
+          <code>create_teacher_note_draft</code> 补 <code>require_owned_student</code>（服务层 fail-closed，不再仅依赖调用方校验）；
+          <code>outreach_tools</code> 的 history / notes 过滤下推 DAO（<code>student_id + owner_id</code>，原全量拉取后 Python 过滤）；
+          清理 <code>voice.py</code> 中遮蔽导入的重复 <code>TRANSCRIPT_STUB</code> 定义。</li>
       </ul>
     </div>
   </div>
+  <p class="sidenote"><b>待办（Phase 2 剩余）：</b>Agents-as-Tools 协调者、Swarm/Graph 草稿→judge→终稿流水线、MCP 只读面、guard 分来源放行策略（遗留 (4)）。</p>
 </div>
 
 <!-- ============ Phase 3 ============ -->
@@ -209,7 +226,7 @@
   </ul>
 </div>
 
-<footer>ContactLoop · Strands Agents Tracks · 2026-09-12 · 配套 <a href="strands-agent-roadmap.html">Roadmap</a></footer>
+<footer>ContactLoop · Strands Agents Tracks · 2026-09-13 · 配套 <a href="strands-agent-roadmap.html">Roadmap</a></footer>
 </div>
 </body>
 </html>

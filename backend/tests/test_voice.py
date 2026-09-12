@@ -24,7 +24,6 @@ def test_voice_stub_flow_upload_put_and_transcription(client, make_student):
     saved = voice_dir() / object_key
     assert saved.exists()
     assert saved.read_bytes() == voice_bytes
-    saved.unlink(missing_ok=True)
 
     response = client.post(
         "/api/v1/voice/transcriptions",
@@ -40,6 +39,7 @@ def test_voice_stub_flow_upload_put_and_transcription(client, make_student):
         "status": "completed",
         "transcript": "(Voice note saved locally. Transcription is not configured.)",
     }
+    saved.unlink(missing_ok=True)
 
 
 def test_voice_upload_rejects_invalid_object_key(client):
@@ -93,3 +93,81 @@ def test_voice_transcription_rejects_another_users_object_key(
     )
 
     assert response.status_code == 404
+
+
+def test_voice_transcription_requires_uploaded_file(client, make_student):
+    student = make_student(guardians=[])
+    body = _request_upload(client, student["id"])
+
+    response = client.post(
+        "/api/v1/voice/transcriptions",
+        json={"student_id": student["id"], "object_key": body["object_key"]},
+    )
+
+    assert response.status_code == 404
+
+
+def test_voice_transcription_job_creates_unconfirmed_teacher_note_draft(
+    client, make_student, monkeypatch
+):
+    student = make_student(guardians=[])
+    body = _request_upload(client, student["id"])
+    voice_bytes = b"fake-webm-audio-bytes"
+    assert client.put(body["upload_url"], content=voice_bytes).status_code == 204
+
+    monkeypatch.setattr(
+        "app.services.voice_transcription.transcribe_enabled",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        "app.services.voice_transcription._transcribe_file",
+        lambda file_path: "Parent asked about homework schedule.",
+    )
+
+    from app.services import voice_transcription
+
+    original_finalize = voice_transcription._finalize_draft
+    completed = {}
+
+    def fake_finalize(job_id, user_id, student_id, transcript):
+        completed["args"] = (user_id, student_id, transcript)
+        monkeypatch.setattr(
+            "app.services.note_drafts.draft_note_content",
+            lambda facts: "Summary: parent asked about homework.",
+        )
+        original_finalize(job_id, user_id, student_id, transcript)
+
+    monkeypatch.setattr(voice_transcription, "_finalize_draft", fake_finalize)
+
+    started = client.post(
+        "/api/v1/voice/transcriptions",
+        json={"student_id": student["id"], "object_key": body["object_key"]},
+    )
+    assert started.status_code == 200
+    job_id = started.json()["job_id"]
+
+    import time
+
+    for _ in range(50):
+        if voice_transcription.get_job(job_id).get("status") != "processing":
+            break
+        time.sleep(0.05)
+
+    job = voice_transcription.get_job(job_id)
+    assert job["status"] == "completed"
+    assert job["transcript"] == "Parent asked about homework schedule."
+    user_id, student_id, _transcript = completed["args"]
+
+    notes = client.get(
+        "/api/v1/teacher-notes", params={"student_id": student["id"]}
+    ).json()
+    drafts = [
+        note
+        for note in notes
+        if note["content"] == "Summary: parent asked about homework."
+    ]
+    assert drafts
+    assert drafts[0]["teacher_confirmed"] is False
+    assert drafts[0]["source"] == "voice"
+
+    (voice_dir() / body["object_key"]).unlink(missing_ok=True)

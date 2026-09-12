@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     outreach_agent_timeout_seconds: float = 90.0
     voice_notes_dir: str | None = None
     voice_max_upload_bytes: int = 26_214_400
+    voice_transcribe_enabled: bool = False
+    voice_transcribe_bucket: str | None = None
+    voice_transcribe_language: str = "en-US"
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     app_env: str = "development"
 

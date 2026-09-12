@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 from app.schemas.common import ORMModel
 
-TeacherNoteSource = Literal["typed", "voice"]
+TeacherNoteSource = Literal["typed", "voice", "ai"]
 
 
 class TeacherNoteCreate(BaseModel):

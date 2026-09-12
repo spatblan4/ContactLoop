@@ -55,6 +55,16 @@ class ContactBriefGenerateResponse(BaseModel):
     brief: dict[str, Any] = Field(default_factory=dict)
 
 
+class CallSummaryRequest(BaseModel):
+    contact_event_id: uuid.UUID
+
+
+class CallSummaryResponse(BaseModel):
+    note_id: uuid.UUID
+    content: str
+    teacher_confirmed: bool = False
+
+
 @ai_router.post("/contact-brief/generate", response_model=ContactBriefGenerateResponse)
 def generate_contact_brief(
     payload: ContactBriefGenerateRequest,
@@ -90,6 +100,49 @@ def _message_text(message: dict) -> str:
         if isinstance(block, dict) and block.get("text")
     ]
     return " ".join(parts).strip()
+
+
+@ai_router.post("/call-summary/generate", response_model=CallSummaryResponse)
+def generate_call_summary(
+    payload: CallSummaryRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Create an unconfirmed teacher-note draft summarizing a completed call."""
+    from app.models import ContactEvent
+    from app.services.note_drafts import (
+        create_teacher_note_draft,
+        draft_note_content,
+    )
+
+    event = require_owned_resource(
+        db, ContactEvent, payload.contact_event_id, user.id, "contact event"
+    )
+    facts = {
+        "result": event.result,
+        "call_time": (event.call_time or event.created_at).isoformat(),
+        "duration_seconds": event.duration_seconds,
+        "topic": event.topic,
+        "discussed_topics": list(event.discussed_topics or []),
+    }
+    if not settings.bedrock_model_id or not settings.aws_region:
+        raise HTTPException(
+            status_code=503,
+            detail="Call summary Agent is temporarily unavailable. Try again shortly.",
+        )
+    try:
+        content = draft_note_content(facts)
+    except Exception:
+        raise HTTPException(
+            status_code=503,
+            detail="Call summary Agent is temporarily unavailable. Try again shortly.",
+        ) from None
+    note = create_teacher_note_draft(
+        db, user, event.student_id, content, source="ai", contact_event_id=event.id
+    )
+    return CallSummaryResponse(
+        note_id=note.id, content=note.content, teacher_confirmed=False
+    )
 
 
 @ai_router.post("/outreach-plan/generate/stream")

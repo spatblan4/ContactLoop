@@ -5,7 +5,9 @@ export function notesForStudent(notes = [], studentId) {
 }
 
 export function teacherNoteSourceLabel(source) {
-  return source === 'voice' ? 'Voice note' : 'Typed note';
+  if (source === 'voice') return 'Voice note';
+  if (source === 'ai') return 'AI draft · needs review';
+  return 'Typed note';
 }
 
 export function normalizeTeacherNote(note) {

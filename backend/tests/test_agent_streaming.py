@@ -1,4 +1,4 @@
-"""Phase 1 SSE streaming tests."""
+"""Phase 1 SSE streaming and Phase 2 call-summary draft tests."""
 
 from types import SimpleNamespace
 
@@ -138,3 +138,58 @@ def test_outreach_plan_generate_stream_rejects_unauthorized_student(
     names = [name for name, _data in events]
     assert "plan" not in names
     assert "error" in names
+
+
+def test_call_summary_creates_unconfirmed_draft(
+    client, make_user, make_student, make_event, monkeypatch
+):
+    from tests.test_auth import auth_headers
+
+    monkeypatch.setattr(
+        "app.api.v1.ai_briefs.settings",
+        SimpleNamespace(bedrock_model_id="test-model", aws_region="us-east-2"),
+    )
+    monkeypatch.setattr(
+        "app.services.note_drafts.draft_note_content",
+        lambda facts: "Summary of the connected call.",
+    )
+
+    teacher = make_user()
+    headers = auth_headers(teacher["token"])
+    student = make_student(headers=headers)
+    event = make_event(student["id"], headers=headers, result="Connected")
+
+    response = client.post(
+        "/api/v1/ai/call-summary/generate",
+        json={"contact_event_id": event["id"]},
+        headers=headers,
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["content"] == "Summary of the connected call."
+    assert body["teacher_confirmed"] is False
+
+    notes = client.get(
+        "/api/v1/teacher-notes", params={"student_id": student["id"]}, headers=headers
+    ).json()
+    drafts = [note for note in notes if note["id"] == body["note_id"]]
+    assert drafts
+    assert drafts[0]["teacher_confirmed"] is False
+    assert drafts[0]["source"] == "ai"
+
+
+def test_call_summary_rejects_another_teachers_event(
+    client, second_auth, make_user, make_student, make_event
+):
+    from tests.test_auth import auth_headers
+
+    teacher = make_user()
+    student = make_student(headers=auth_headers(teacher["token"]))
+    event = make_event(student["id"], headers=auth_headers(teacher["token"]))
+
+    response = client.post(
+        "/api/v1/ai/call-summary/generate",
+        json={"contact_event_id": event["id"]},
+        headers=second_auth["headers"],
+    )
+    assert response.status_code == 404

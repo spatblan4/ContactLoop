@@ -12,13 +12,16 @@ from app.core.config import settings
 from app.core.exceptions import NotFoundError
 from app.models import User, VoiceNoteObject
 from app.services.ownership import require_owned_student
+from app.services.voice_transcription import (
+    TRANSCRIPT_STUB,
+    get_job,
+    start_transcription_job,
+)
 
 router = APIRouter(prefix="/voice", tags=["voice"])
 
 DEFAULT_VOICE_DIR = Path(__file__).resolve().parents[3] / "data" / "voice_notes"
 OBJECT_KEY_PATTERN = re.compile(r"^[A-Za-z0-9._-]{1,200}$")
-
-TRANSCRIPT_STUB = "(Voice note saved locally. Transcription is not configured.)"
 
 
 class VoiceUploadRequest(BaseModel):
@@ -129,9 +132,20 @@ def start_voice_transcription(
     record = _require_owned_voice_note(db, payload.object_key, user)
     if record.student_id != payload.student_id:
         raise NotFoundError("voice note not found")
-    return VoiceTranscriptionResponse(job_id=uuid.uuid4().hex)
+    file_path = voice_dir() / payload.object_key
+    if not file_path.exists():
+        raise NotFoundError("voice note not found")
+    job_id = start_transcription_job(db, user, record, file_path)
+    return VoiceTranscriptionResponse(job_id=job_id)
 
 
 @router.get("/transcriptions/{job_id}", response_model=VoiceTranscriptionStatus)
-def get_voice_transcription(job_id: str, _user: User = Depends(get_current_user)):
-    return VoiceTranscriptionStatus(status="completed", transcript=TRANSCRIPT_STUB)
+def get_voice_transcription(job_id: str, user: User = Depends(get_current_user)):
+    job = get_job(job_id, user_id=user.id)
+    if job is None:
+        raise NotFoundError("transcription job not found")
+    status = job.get("status", "processing")
+    transcript = job.get("transcript")
+    if status == "completed" and transcript is None:
+        transcript = TRANSCRIPT_STUB
+    return VoiceTranscriptionStatus(status=status, transcript=transcript or "")
