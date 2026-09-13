@@ -4,7 +4,9 @@ Both the voice-note pipeline and the call-summary flow produce DRAFTS only:
 ``teacher_confirmed`` stays false until a teacher approves the note in the UI.
 """
 
+import concurrent.futures
 import logging
+import threading
 from datetime import datetime, timezone
 from typing import Any
 
@@ -28,6 +30,8 @@ numbers or personal contact data. This draft is teacher-reviewed only."""
 
 # Strands names the structured-output tool after the model class.
 STRUCTURED_DRAFT_TOOL_NAME = TeacherNoteDraft.__name__
+
+DEFAULT_AGENT_TIMEOUT_SECONDS = 90.0
 
 
 def _build_bedrock_model() -> "Any":
@@ -80,6 +84,30 @@ def draft_note_content(facts: dict, cancel_signal: Any = None) -> str:
     if structured is None:
         raise RuntimeError("The agent returned no draft.")
     return TeacherNoteDraft.model_validate(structured).content
+
+
+def draft_note_content_bounded(facts: dict) -> str:
+    """Run ``draft_note_content`` with the configured agent timeout.
+
+    Mirrors the plan / QA agent paths: a hung Bedrock call (or a pipeline
+    revise loop) cannot hold a request worker indefinitely, and the cancel
+    signal aborts the in-flight model call at its next checkpoint.
+    """
+    timeout = getattr(
+        settings, "outreach_agent_timeout_seconds", DEFAULT_AGENT_TIMEOUT_SECONDS
+    )
+    cancel_signal = threading.Event()
+    pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    try:
+        future = pool.submit(draft_note_content, facts, cancel_signal=cancel_signal)
+        try:
+            return future.result(timeout=timeout)
+        except TimeoutError:
+            cancel_signal.set()
+            logger.warning("Note draft agent timed out after %s seconds.", timeout)
+            raise
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
 
 
 def _run_quality_pipeline(facts: dict) -> str:

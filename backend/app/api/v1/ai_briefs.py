@@ -112,7 +112,7 @@ def generate_call_summary(
     from app.models import ContactEvent
     from app.services.note_drafts import (
         create_teacher_note_draft,
-        draft_note_content,
+        draft_note_content_bounded,
     )
 
     event = require_owned_resource(
@@ -131,8 +131,9 @@ def generate_call_summary(
             detail="Call summary Agent is temporarily unavailable. Try again shortly.",
         )
     try:
-        content = draft_note_content(facts)
+        content = draft_note_content_bounded(facts)
     except Exception:
+        logger.warning("Call summary generation failed.", exc_info=True)
         raise HTTPException(
             status_code=503,
             detail="Call summary Agent is temporarily unavailable. Try again shortly.",

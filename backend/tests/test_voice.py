@@ -133,7 +133,7 @@ def test_voice_transcription_job_creates_unconfirmed_teacher_note_draft(
         completed["args"] = (user_id, student_id, transcript)
         monkeypatch.setattr(
             "app.services.note_drafts.draft_note_content",
-            lambda facts: "Summary: parent asked about homework.",
+            lambda facts, cancel_signal=None: "Summary: parent asked about homework.",
         )
         original_finalize(job_id, user_id, student_id, transcript)
 

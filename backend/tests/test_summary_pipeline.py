@@ -93,6 +93,43 @@ def test_pipeline_fails_closed_on_unclear_judge_reply():
         )
 
 
+def test_draft_note_content_bounded_times_out_and_cancels(monkeypatch):
+    import time
+    from types import SimpleNamespace
+
+    import app.services.note_drafts as note_drafts_module
+
+    observed = {}
+
+    def slow_draft(_facts, cancel_signal=None):
+        observed["cancel_signal"] = cancel_signal
+        for _ in range(50):
+            time.sleep(0.05)
+            if cancel_signal is not None and cancel_signal.is_set():
+                observed["cancelled"] = True
+                return "late draft"
+
+    monkeypatch.setattr(
+        note_drafts_module,
+        "settings",
+        SimpleNamespace(outreach_agent_timeout_seconds=0.05),
+    )
+    monkeypatch.setattr(
+        note_drafts_module, "draft_note_content", slow_draft, raising=False
+    )
+
+    with pytest.raises(TimeoutError):
+        note_drafts_module.draft_note_content_bounded({"result": "Connected"})
+
+    # The cancel signal must be set so the underlying agent call can abort.
+    assert observed.get("cancel_signal") is not None
+    for _ in range(60):
+        if observed.get("cancelled"):
+            break
+        time.sleep(0.05)
+    assert observed.get("cancelled") is True
+
+
 def test_call_summary_endpoint_uses_pipeline_when_enabled(
     client, make_user, make_student, make_event, monkeypatch
 ):

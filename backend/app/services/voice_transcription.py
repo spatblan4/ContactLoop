@@ -154,12 +154,15 @@ def _finalize_draft(
 ) -> None:
     """Create an unconfirmed teacher-note draft from the transcript."""
     from app.api.deps import get_db
-    from app.services.note_drafts import create_teacher_note_draft, draft_note_content
+    from app.services.note_drafts import (
+        create_teacher_note_draft,
+        draft_note_content_bounded,
+    )
 
     db = next(get_db())
     try:
         try:
-            content = draft_note_content({"transcript": transcript})
+            content = draft_note_content_bounded({"transcript": transcript})
         except Exception:
             logger.warning("Falling back to raw transcript for note draft.")
             content = f"[Draft from voice transcript]\n{transcript}"

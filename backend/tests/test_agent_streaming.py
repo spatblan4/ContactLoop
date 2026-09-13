@@ -151,7 +151,7 @@ def test_call_summary_creates_unconfirmed_draft(
     )
     monkeypatch.setattr(
         "app.services.note_drafts.draft_note_content",
-        lambda facts: "Summary of the connected call.",
+        lambda facts, cancel_signal=None: "Summary of the connected call.",
     )
 
     teacher = make_user()

@@ -1,5 +1,7 @@
 """Teacher Assistant coordinator endpoint (Phase 2 agents-as-tools)."""
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -8,6 +10,8 @@ from app.api.deps import get_current_user, get_db
 from app.core.config import settings
 from app.models import User
 from app.services.outreach_coordinator import ask_teacher_assistant
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/teacher-assistant", tags=["teacher-assistant"])
 
@@ -39,4 +43,5 @@ def ask_assistant(
     try:
         return ask_teacher_assistant(db, user.id, payload.request.strip())
     except Exception:
+        logger.warning("Teacher Assistant request failed.", exc_info=True)
         raise _assistant_unavailable() from None

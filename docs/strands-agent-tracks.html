@@ -49,7 +49,7 @@
 <header class="doc">
   <div class="brand"><div class="brand-mark">C</div><div class="brand-name">Contact<span>Loop</span></div></div>
   <h1>Strands Agents · Tracks</h1>
-  <p class="sub">来源：<a href="strands-agent-roadmap.html">strands-agent-roadmap.html</a> · 更新：2026-09-13（Phase 2 完成） · 依赖：<code>strands-agents &gt;= 1.0.0</code>（<code>backend/requirements-bedrock.txt</code>）</p>
+  <p class="sub">来源：<a href="strands-agent-roadmap.html">strands-agent-roadmap.html</a> · 更新：2026-09-13（Phase 2 评审） · 依赖：<code>strands-agents &gt;= 1.0.0</code>（<code>backend/requirements-bedrock.txt</code>，实测 1.55.1）</p>
   <p class="sub">用途：按阶段追踪 Strands Agent 深挖的 <b>new features <span style="color:var(--green)">(新能力)</span></b> 与 <b>fixes <span style="color:var(--coral)">(修复)</span></b>，作为后续任务引用现状/进度与已落地决策的单一入口。</p>
 </header>
 
@@ -155,6 +155,10 @@
         <li>Phase 0 遗留 (4) 解决：守卫改为分来源放行策略——显式白名单 + <code>allowed_prefixes</code>（外部只读工具前缀）+ SDK 注入工具（<code>retrieve_context</code>），MCP / agentic context manager 不再被误拦；</li>
         <li>语音转写后台线程只传值对象（避免 ORM 跨会话 detached 访问）；</li>
         <li>前端 <code>teacherNoteSourceLabel</code> 识别 <code>ai</code> 来源并标注 "needs review"；</li>
+        <li><b>Phase 2 代码评审修复（2026-09-13）：</b>
+          call-summary / 语音草稿路径补超时与取消——新增 <code>draft_note_content_bounded</code>（线程池 + <code>outreach_agent_timeout_seconds</code> + <code>cancel_signal</code>，与 plan / QA 路径对齐），接入 <code>generate_call_summary</code> 与语音后台 <code>_finalize_draft</code>，并补超时取消测试（原该路径挂起的 Bedrock 调用或 Graph 修订环会无限占用请求 worker，违反「超时可取消全链路」约定）；
+          <code>teacher_assistant.py</code> 端点异常补日志（Phase 1 评审刚确立的模式，新端点回归遗漏）；
+          <code>ask_teacher_assistant</code> 候选集改为一次构建经 <code>candidates=</code> 透传（原重复查询两次）。</li>
         <li><b>Phase 1 评审连带修复（本批文件）：</b>
           <code>transcribe_enabled()</code> 补验 <code>voice_transcribe_bucket</code>（原启用但缺桶时后台任务直接失败）；
           Transcribe 轮询加 300s 上限（原 <code>while True</code> 无界）；
@@ -165,11 +169,12 @@
       </ul>
     </div>
   </div>
-  <p class="sidenote">测试：owner 工具隔离（含越权 404）、call-summary 草稿 + 越权 + 流水线开关与 fail-closed、语音转写归属/上限、协调者路由/守卫拦截/端点 503/401、Graph 流水线 直批/修订/不批/含糊裁决、MCP 白名单解析/门控/降级/QA 接线。全部 FakeModel 驱动，不触网。</p>
+  <p class="sidenote">测试：owner 工具隔离（含越权 404）、call-summary 草稿 + 越权 + 流水线开关与 fail-closed、语音转写归属/上限、协调者路由/守卫拦截/端点 503/401、Graph 流水线 直批/修订/不批/含糊裁决、MCP 白名单解析/门控/降级/QA 接线、草稿超时取消。全部 FakeModel 驱动，不触网（后端 162 / 前端 138 全绿）。</p>
   <p class="sidenote"><b>已知限制（暂接受）：</b>
-    (1) Graph 流水线节点内的模型调用无 <code>cancel_signal</code>，靠图级节点执行上限兜底；
+    (1) Graph 流水线节点内的模型调用不消费 <code>cancel_signal</code>：整体已由 <code>draft_note_content_bounded</code> 的 90s 超时兜底（请求 worker 不再被挂起），但超时后孤儿线程仍会跑到节点执行上限才结束；
     (2) MCP 工具加载发生在每次 QA 请求内（无缓存），server 不可达时每问一次都会重试一次连接（fail-safe 降级）；
-    (3) 协调者的 planner 专家在 as_tool 形态下产出文本计划（无 structured output 校验），正式 outreach 计划仍走原端点。
+    (3) 协调者的 planner 专家在 as_tool 形态下产出文本计划（无 structured output 校验），正式 outreach 计划仍走原端点；
+    (4) 协调者内 QA 专家无独立 session（仅协调者会话持久化），多轮上下文由协调者携带。
   </p>
 </div>
 

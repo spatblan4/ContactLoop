@@ -118,7 +118,7 @@ def test_coordinator_guard_blocks_non_whitelisted_specialists(
 def _patch_coordinator(monkeypatch):
     import app.services.outreach_coordinator as coordinator_module
 
-    def fake_build(db, user_id, models=None, session_manager=None, conversation_manager=None):
+    def fake_build(db, user_id, models=None, session_manager=None, conversation_manager=None, candidates=None):
         from strands import Agent
 
         from app.services.outreach_agent_hooks import ReadOnlyToolGuard

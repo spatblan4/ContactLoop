@@ -46,12 +46,14 @@ def build_teacher_assistant(
     models: dict[str, Any] | None = None,
     session_manager: Any = None,
     conversation_manager: Any = None,
+    candidates: list[Any] | None = None,
 ) -> Any:
     """Construct the Teacher Assistant coordinator agent.
 
     ``models`` maps specialist names (planner / qa / summarizer / coordinator)
     to model instances and exists so tests can drive the real agent loop with
-    scripted fake models.
+    scripted fake models. ``candidates`` lets a caller that already built the
+    outreach candidates reuse them instead of re-querying.
     """
     from strands import Agent
 
@@ -65,7 +67,8 @@ def build_teacher_assistant(
     from app.services.outreach_tools import build_outreach_tools
 
     models = models or {}
-    candidates = build_outreach_candidates(db, user_id)
+    if candidates is None:
+        candidates = build_outreach_candidates(db, user_id)
     candidate_payload = [
         candidate.model_dump(mode="json") for candidate in candidates
     ]
@@ -146,6 +149,7 @@ def ask_teacher_assistant(
     session_manager = RepositorySessionManager(
         session_id=assistant_session_id(user_id), session_repository=repository
     )
+    candidates = build_outreach_candidates(db, user_id)
     agent = build_teacher_assistant(
         db,
         user_id,
@@ -154,7 +158,7 @@ def ask_teacher_assistant(
         conversation_manager=SummarizingConversationManager(
             preserve_recent_messages=10
         ),
+        candidates=candidates,
     )
     answer = _run_qa_agent(agent, request)
-    candidates = build_outreach_candidates(db, user_id)
     return {"answer": answer, "candidate_count": len(candidates)}
