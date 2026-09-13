@@ -102,7 +102,7 @@ insert into public.contact_events (id, student_id, guardian_id, call_time, durat
 values
   ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1', '11111111-1111-4111-8111-111111111111', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', now() - interval '3 days', null, 'No Answer', 1, null, null),
   ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee2', '11111111-1111-4111-8111-111111111111', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', now() - interval '2 hours', null, 'No Answer', 2, null, null),
-  ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee3', '22222222-2222-4222-8222-222222222222', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', now() - interval '4 hours', 463, 'Connected', 1, 'IEP', 'Dad confirmed Friday at 2 and asked about transportation.'),
+  ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee3', '22222222-2222-4222-8222-222222222222', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', now() - interval '4 hours', null, 'Connected', 1, 'IEP', 'Dad confirmed Friday at 2 and asked about transportation.'),
   ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee4', '33333333-3333-4333-8333-333333333333', 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', now() - interval '2 days', 252, 'Connected', 1, 'Behavior', null),
   ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee5', '33333333-3333-4333-8333-333333333333', 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', now() - interval '2 hours', null, 'Busy', 1, null, null),
   ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee6', '44444444-4444-4444-8444-444444444444', 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', now() - interval '5 hours', null, 'Failed', 1, null, null)

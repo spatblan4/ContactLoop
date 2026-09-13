@@ -19,6 +19,17 @@ export function signUpWithPassword(email, password, client = supabase) {
   return authClient(client).signUp({ email, password });
 }
 
+export function sendEmailOtp(email, client = supabase, emailRedirectTo = globalThis.location?.origin) {
+  return authClient(client).signInWithOtp({
+    email,
+    options: { shouldCreateUser: false, ...(emailRedirectTo ? { emailRedirectTo } : {}) },
+  });
+}
+
+export function verifyEmailOtp(email, token, client = supabase) {
+  return authClient(client).verifyOtp({ email, token, type: 'email' });
+}
+
 export async function signOut(client = supabase) {
   const { error } = await authClient(client).signOut();
   if (error) throw error;
