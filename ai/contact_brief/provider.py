@@ -8,6 +8,7 @@ from strands import Agent
 from strands.models import BedrockModel
 
 from .schema import ContactBrief, ContactStats
+from .next_step import grounded_suggested_next_step
 from .supabase_reader import SupabaseContactReader
 from .tools import build_contact_tools
 
@@ -22,6 +23,9 @@ unsuccessful outreach attempt; never say that an unsuccessful call discussed any
 Never invent a concern, request, resolution, topic, or follow-up. If evidence is
 missing, return an empty list for that field. Do not calculate any numbers; counts
 are authoritative Supabase values and are returned separately by the service.
+When an open follow-up exists, suggested_next_step must state the earliest recorded
+follow-up date. Do not replace that date with a vague recommendation or invent an
+action that is not supported by the follow-up record.
 Do not make legal, compliance, medical, or educational judgments. Do not mention
 phone numbers, provider IDs, recordings, transcripts, or internal system details.
 Return only the requested structured ContactBrief fields.
@@ -59,9 +63,15 @@ class AwsStrandsContactBriefProvider:
             "narrative fields; the service attaches authoritative stats separately."
         )
         result = agent(prompt, structured_output_model=ContactBrief)
+        follow_ups = self.reader.get_open_follow_ups(student_id)
+        brief = result.structured_output
+        brief.suggested_next_step = grounded_suggested_next_step(
+            brief.suggested_next_step,
+            follow_ups,
+        )
         return ContactBriefResponse(
             provider=self.name,
             review_status="pending",
             stats=stats,
-            brief=result.structured_output,
+            brief=brief,
         ).model_dump()
