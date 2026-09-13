@@ -5,6 +5,22 @@ export function generateOutreachPlan(options) {
   return apiFetch(`${API_PREFIX}/ai/outreach-plan/generate`, { method: 'POST', ...options });
 }
 
+export function askOutreachQuestion(question, options) {
+  return apiFetch(`${API_PREFIX}/outreach-plan/ask`, { method: 'POST', body: { question }, ...options });
+}
+
+export function getOutreachConversation(options) {
+  return apiFetch(`${API_PREFIX}/outreach-plan/conversation`, options);
+}
+
+export function resetOutreachConversation(options) {
+  return apiFetch(`${API_PREFIX}/outreach-plan/conversation`, { method: 'DELETE', ...options });
+}
+
+export function askTeacherAssistant(request, options) {
+  return apiFetch(`${API_PREFIX}/teacher-assistant/ask`, { method: 'POST', body: { request }, ...options });
+}
+
 /**
  * Stream outreach plan generation over server-sent events.
  * `onProgress({event, data})` receives intermediate events (e.g. "message").

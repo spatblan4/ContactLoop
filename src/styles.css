@@ -326,3 +326,28 @@ h3 { font:600 14px 'Space Grotesk'; }
 .outcome:first-child span::after{content:none}
 .modal:has(#note) .call-preview::after{content:'✓ Connected · Logged manually'}
 @media(max-width:620px){.guardian-row{flex-wrap:wrap}.guardian-row-actions{margin-left:auto}.log-detail-footer{flex-direction:column-reverse;align-items:stretch}.log-detail-footer button{width:100%}}
+
+/* Outreach QA + Teacher Assistant + call-summary draft */
+.outreach-qa{display:grid;gap:10px;margin-top:16px;padding-top:15px;border-top:1px solid #dce6da}
+.outreach-qa-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.outreach-qa-head h3{margin:0;font-size:13px}
+.outreach-qa-head p{margin:2px 0 0;color:var(--muted);font-size:11px}
+.qa-reset{border:0;background:transparent;color:#8c5043;font-size:10px;font-weight:700;padding:4px 0;cursor:pointer;text-decoration:underline}
+.qa-messages{display:grid;gap:8px;max-height:240px;overflow:auto;padding-right:2px}
+.qa-message{padding:9px 11px;border-radius:10px;font-size:12px;line-height:1.5}
+.qa-message span{display:block;margin-bottom:3px;color:var(--muted);font:9px 'DM Mono';text-transform:uppercase;letter-spacing:.06em}
+.qa-message p{margin:0}
+.qa-message.teacher{background:#fffdfa;border:1px solid #e8dcc8}
+.qa-message.agent{background:#eef3ec;border:1px solid #d5e2d3}
+.qa-input{display:flex;gap:8px}
+.qa-input input{flex:1;min-width:0;border:1px solid #cdd9cd;border-radius:9px;background:#fffefa;color:var(--ink);font:12px 'Space Grotesk';padding:9px}
+.qa-thinking{margin:0;color:var(--muted);font-size:11px}
+.history-summary{border:1px solid #b9d8bd;border-radius:8px;background:#e6f3e7;color:#285f42;font-size:10px;font-weight:700;padding:5px 9px;cursor:pointer;white-space:nowrap}
+.history-summary:disabled{opacity:.55;cursor:not-allowed}
+.sidebar-assistant{display:flex;align-items:center;gap:7px;width:100%;margin-top:10px;border:1px solid #d5e2d3;border-radius:9px;background:#f5f9f3;color:#2d684c;font-size:11px;font-weight:700;padding:9px 11px;cursor:pointer;text-align:left}
+.sidebar-assistant:hover{background:#e6f3e7}
+.assistant-modal{max-width:560px}
+.assistant-messages{min-height:120px;max-height:320px}
+.assistant-empty{margin:0;color:var(--muted);font-size:12px}
+.assistant-footer{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}
+.assistant-footer input{border:1px solid #cdd9cd;border-radius:9px;background:#fffefa;color:var(--ink);font:12px 'Space Grotesk';padding:9px}

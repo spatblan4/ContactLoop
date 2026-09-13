@@ -170,7 +170,7 @@
       </ul>
     </div>
   </div>
-  <p class="sidenote">测试：owner 工具隔离（含越权 404）、call-summary 草稿 + 越权 + 流水线开关与 fail-closed、语音转写归属/上限、协调者路由/守卫拦截/端点 503/401、Graph 流水线 直批/修订/不批/含糊裁决、MCP 白名单解析/门控/降级/QA 接线、草稿超时取消。全部 FakeModel 驱动，不触网（后端 162 / 前端 138 全绿）。</p>
+  <p class="sidenote">测试：owner 工具隔离（含越权 404）、call-summary 草稿 + 越权 + 流水线开关与 fail-closed、语音转写归属/上限、协调者路由/守卫拦截/端点 503/401、Graph 流水线 直批/修订/不批/含糊裁决、MCP 白名单解析/门控/降级/QA 接线、草稿超时取消。全部 FakeModel 驱动，不触网（后端 162 / 前端 145 全绿）。前端入口已接入：Outreach 计划卡片下 QA 问答框（会话恢复 / 重置）、Contact history 的 Connected 事件「Draft summary」按钮、侧边栏 Teacher Assistant 模态。</p>
   <p class="sidenote"><b>已知限制（暂接受）：</b>
     (1) Graph 流水线节点内的模型调用不消费 <code>cancel_signal</code>：整体已由 <code>draft_note_content_bounded</code> 的 90s 超时兜底（请求 worker 不再被挂起），但超时后孤儿线程仍会跑到节点执行上限才结束；
     (2) MCP 工具加载发生在每次 QA 请求内（无缓存），server 不可达时每问一次都会重试一次连接（fail-safe 降级）；

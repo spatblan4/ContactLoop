@@ -19,3 +19,11 @@ export function updateContactEvent(id, updates, options) {
 export function deleteContactEvent(id, options) {
   return apiFetch(`${API_PREFIX}/contact-events/${id}`, { method: 'DELETE', ...options });
 }
+
+export function generateCallSummary(contactEventId, options) {
+  return apiFetch(`${API_PREFIX}/ai/call-summary/generate`, {
+    method: 'POST',
+    body: { contact_event_id: contactEventId },
+    ...options,
+  });
+}
