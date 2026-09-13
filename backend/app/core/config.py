@@ -1,5 +1,9 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+DEFAULT_AGENT_TIMEOUT_SECONDS = 90.0
+DEFAULT_AGENT_PRESERVE_RECENT_MESSAGES = 10
+DEFAULT_SUMMARY_PIPELINE_MAX_NODE_EXECUTIONS = 6
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -19,7 +23,11 @@ class Settings(BaseSettings):
     bedrock_guardrail_version: str | None = None
     strands_console_tracing: bool = False
     strands_otlp_tracing: bool = False
-    outreach_agent_timeout_seconds: float = 90.0
+    outreach_agent_timeout_seconds: float = DEFAULT_AGENT_TIMEOUT_SECONDS
+    agent_preserve_recent_messages: int = DEFAULT_AGENT_PRESERVE_RECENT_MESSAGES
+    summary_pipeline_max_node_executions: int = (
+        DEFAULT_SUMMARY_PIPELINE_MAX_NODE_EXECUTIONS
+    )
     bedrock_guardrail_redact_output: bool = False
     call_summary_quality_pipeline: bool = False
     mcp_server_url: str | None = None

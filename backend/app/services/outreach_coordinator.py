@@ -11,7 +11,10 @@ from typing import Any
 
 from sqlalchemy.orm import Session as DbSession
 
-from app.core.config import settings
+from app.core.config import (
+    DEFAULT_AGENT_PRESERVE_RECENT_MESSAGES,
+    settings,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -26,8 +29,6 @@ include phone numbers or personal contact data. Keep answers concise."""
 PLANNER_TOOL_NAME = "create_outreach_plan"
 QA_TOOL_NAME = "answer_outreach_questions"
 SUMMARY_TOOL_NAME = "draft_call_summary"
-
-DEFAULT_AGENT_TIMEOUT_SECONDS = 90.0
 
 
 def assistant_session_id(user_id: Any) -> str:
@@ -156,7 +157,11 @@ def ask_teacher_assistant(
         models=models,
         session_manager=session_manager,
         conversation_manager=SummarizingConversationManager(
-            preserve_recent_messages=10
+            preserve_recent_messages=getattr(
+                settings,
+                "agent_preserve_recent_messages",
+                DEFAULT_AGENT_PRESERVE_RECENT_MESSAGES,
+            )
         ),
         candidates=candidates,
     )

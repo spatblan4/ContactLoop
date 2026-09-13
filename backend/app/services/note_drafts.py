@@ -13,7 +13,11 @@ from typing import Any
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session as DbSession
 
-from app.core.config import settings
+from app.core.config import (
+    DEFAULT_AGENT_TIMEOUT_SECONDS,
+    DEFAULT_SUMMARY_PIPELINE_MAX_NODE_EXECUTIONS,
+    settings,
+)
 from app.dao import TeacherNoteDAO
 from app.models import User
 
@@ -30,8 +34,6 @@ numbers or personal contact data. This draft is teacher-reviewed only."""
 
 # Strands names the structured-output tool after the model class.
 STRUCTURED_DRAFT_TOOL_NAME = TeacherNoteDraft.__name__
-
-DEFAULT_AGENT_TIMEOUT_SECONDS = 90.0
 
 
 def _build_bedrock_model() -> "Any":
@@ -128,6 +130,11 @@ def _run_quality_pipeline(facts: dict) -> str:
         draft_agent=build_note_draft_agent(),
         judge_agent=_build_review_agent(JUDGE_PROMPT),
         final_agent=_build_review_agent(FINAL_PROMPT),
+        max_node_executions=getattr(
+            settings,
+            "summary_pipeline_max_node_executions",
+            DEFAULT_SUMMARY_PIPELINE_MAX_NODE_EXECUTIONS,
+        ),
     )
 
 

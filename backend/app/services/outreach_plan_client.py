@@ -3,13 +3,11 @@ import logging
 import threading
 from datetime import datetime, timezone
 
-from app.core.config import settings
+from app.core.config import DEFAULT_AGENT_TIMEOUT_SECONDS, settings
 from app.schemas.outreach_plan import OutreachPlanCandidate, OutreachPlanResponse
 from app.services.outreach_plan_agent import generate_plan
 
 logger = logging.getLogger(__name__)
-
-DEFAULT_AGENT_TIMEOUT_SECONDS = 90.0
 
 
 class OutreachAgentUnavailable(Exception):

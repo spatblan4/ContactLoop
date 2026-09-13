@@ -158,7 +158,8 @@
         <li><b>Phase 2 代码评审修复（2026-09-13）：</b>
           call-summary / 语音草稿路径补超时与取消——新增 <code>draft_note_content_bounded</code>（线程池 + <code>outreach_agent_timeout_seconds</code> + <code>cancel_signal</code>，与 plan / QA 路径对齐），接入 <code>generate_call_summary</code> 与语音后台 <code>_finalize_draft</code>，并补超时取消测试（原该路径挂起的 Bedrock 调用或 Graph 修订环会无限占用请求 worker，违反「超时可取消全链路」约定）；
           <code>teacher_assistant.py</code> 端点异常补日志（Phase 1 评审刚确立的模式，新端点回归遗漏）；
-          <code>ask_teacher_assistant</code> 候选集改为一次构建经 <code>candidates=</code> 透传（原重复查询两次）。</li>
+          <code>ask_teacher_assistant</code> 候选集改为一次构建经 <code>candidates=</code> 透传（原重复查询两次）；
+          硬编码收敛：超时 fallback 常量统一到 <code>config.py</code> 单一来源（原 4 处模块级拷贝），会话上下文保留条数与修订环上限改为配置（<code>AGENT_PRESERVE_RECENT_MESSAGES</code>、<code>SUMMARY_PIPELINE_MAX_NODE_EXECUTIONS</code>）。</li>
         <li><b>Phase 1 评审连带修复（本批文件）：</b>
           <code>transcribe_enabled()</code> 补验 <code>voice_transcribe_bucket</code>（原启用但缺桶时后台任务直接失败）；
           Transcribe 轮询加 300s 上限（原 <code>while True</code> 无界）；

@@ -7,7 +7,11 @@ from typing import Any
 
 from sqlalchemy.orm import Session as DbSession
 
-from app.core.config import settings
+from app.core.config import (
+    DEFAULT_AGENT_PRESERVE_RECENT_MESSAGES,
+    DEFAULT_AGENT_TIMEOUT_SECONDS,
+    settings,
+)
 from app.services.agent_session_repository import SqlAgentSessionRepository
 from app.services.outreach_mcp import ReadonlyMcpTools
 from app.services.outreach_plan import build_outreach_candidates
@@ -15,7 +19,6 @@ from app.services.outreach_plan_agent import build_outreach_qa_agent
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_AGENT_TIMEOUT_SECONDS = 90.0
 QA_AGENT_ID = "outreach-qa"
 
 
@@ -89,7 +92,11 @@ def ask_outreach_question(
             owner_id=user_id,
             session_manager=session_manager,
             conversation_manager=SummarizingConversationManager(
-                preserve_recent_messages=10
+                preserve_recent_messages=getattr(
+                    settings,
+                    "agent_preserve_recent_messages",
+                    DEFAULT_AGENT_PRESERVE_RECENT_MESSAGES,
+                )
             ),
         )
         answer = _run_qa_agent(agent, question)

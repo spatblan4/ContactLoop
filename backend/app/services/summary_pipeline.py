@@ -9,7 +9,10 @@ cap bounds the cycle, and any outcome without a finalized note fails closed.
 import logging
 from typing import Any
 
-from app.core.config import settings
+from app.core.config import (
+    DEFAULT_SUMMARY_PIPELINE_MAX_NODE_EXECUTIONS as DEFAULT_MAX_NODE_EXECUTIONS,
+    settings,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +33,6 @@ FINAL_PROMPT = """You produce the final teacher note from a reviewed draft.
 Apply the reviewer's instruction when one is present and change nothing else.
 Use only the supplied content and never include phone numbers or personal
 contact data."""
-
-DEFAULT_MAX_NODE_EXECUTIONS = 6
 
 
 def judge_verdict(text: str) -> tuple[bool, str]:

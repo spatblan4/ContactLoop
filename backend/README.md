@@ -87,6 +87,8 @@ setting into a `VITE_*` browser variable.
 | `STRANDS_CONSOLE_TRACING` | `false` | Print Strands agent traces to the server console. |
 | `STRANDS_OTLP_TRACING` | `false` | Export Strands agent traces via OTLP (`OTEL_EXPORTER_OTLP_ENDPOINT`). |
 | `OUTREACH_AGENT_TIMEOUT_SECONDS` | `90` | Hard timeout for one Outreach Agent run. |
+| `AGENT_PRESERVE_RECENT_MESSAGES` | `10` | Messages kept per teacher agent conversation before summarizing. |
+| `SUMMARY_PIPELINE_MAX_NODE_EXECUTIONS` | `6` | Node-execution cap for the draft -> judge -> finalize pipeline. |
 | `VOICE_NOTES_DIR` | `backend/data/voice_notes` | Directory for locally stored voice-note files. |
 | `VOICE_MAX_UPLOAD_BYTES` | `26214400` | Maximum accepted voice-note upload size (25 MB). |
 | `VOICE_TRANSCRIBE_ENABLED` | `false` | Enable Amazon Transcribe for voice notes (requires AWS credentials). |
